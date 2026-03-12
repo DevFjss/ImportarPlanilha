@@ -228,12 +228,6 @@
             background-color: #f0f8ff;
         }
 
-        td.integer-value {
-            text-align: right;
-            font-family: 'Courier New', monospace;
-            background-color: #fff3e0;
-        }
-
         td.code-value {
             text-align: right;
             font-family: 'Courier New', monospace;
@@ -403,7 +397,7 @@
             let startWidth = 0;
             let currentTh = null;
 
-            // Função para formatar números no padrão brasileiro (12.345,89)
+            // Função para formatar números no padrão brasileiro (12.345,89) - para valores monetários
             function formatarNumeroBrasil(valor) {
                 if (valor === null || valor === undefined || valor === '') return '';
                 
@@ -444,7 +438,7 @@
                 if (isNaN(numero)) return valor;
                 
                 // Verifica se é um número muito grande (como cartão de crédito)
-                // Se for maior que 10 dígitos, trata como string sem formatação
+                // Se for maior que 10 dígitos, trata como string sem formatação de milhar
                 if (numero > 9999999999) {
                     return valor.toString().replace(/\D/g, ''); // Remove não-dígitos
                 }
@@ -520,25 +514,40 @@
                 
                 const nomeLower = nomeColuna.toLowerCase().trim();
                 
-                // Colunas de data
-                if (nomeLower.includes('data') || nomeLower.includes('dt_')) {
+                // Coluna de data
+                if (nomeLower.includes('data da remessa') || nomeLower.includes('data')) {
                     return 'data';
                 }
                 
                 // Colunas de código/ID (devem ser inteiros sem decimais)
+                // Lista completa das colunas que você mencionou
                 const colunasCodigo = [
-                    'cod.', 'cod_', 'cód.', 'cód_', 'id', 'sec', 'custo', 'inep', 
-                    'cartao', 'cartão', 'remessa', 'número', 'numero', 'matricula',
-                    'cod', 'cód'
+                    'cod. sec', 'cod sec', 'cod sec.', 'cod.sec',
+                    'cod. custo', 'cod custo', 'cod custo.', 'cod.custo',
+                    'cod. inep', 'cod inep', 'cod inep.', 'cod.inep',
+                    'id custro', 'id_custro', 'idcustro',
+                    'cartao', 'cartão',
+                    'remessa',
+                    'sub?fonte/deputado', 'sub?fonte', 'fonte/deputado', 'subfonte', 'deputado'
                 ];
                 
-                if (colunasCodigo.some(col => nomeLower.includes(col))) {
-                    return 'codigo';
+                // Verifica se o nome da coluna corresponde a qualquer um dos padrões de código
+                for (let codigo of colunasCodigo) {
+                    if (nomeLower.includes(codigo)) {
+                        return 'codigo';
+                    }
                 }
                 
-                // Coluna Remessa - deve ser inteiro
-                if (nomeLower === 'remessa' || nomeLower.includes('remessa')) {
-                    return 'inteiro';
+                // Verifica padrões parciais
+                if (nomeLower.startsWith('cod') || 
+                    nomeLower.includes('cod.') || 
+                    nomeLower.includes('cód.') ||
+                    nomeLower.includes(' id ') ||
+                    nomeLower.startsWith('id ') ||
+                    nomeLower.includes('cartao') ||
+                    nomeLower.includes('cartão') ||
+                    nomeLower.includes('remessa')) {
+                    return 'codigo';
                 }
                 
                 // Colunas de valor monetário (com 2 casas decimais)
@@ -576,7 +585,10 @@
                                celulaLower.includes('id') ||
                                celulaLower.includes('cod.') ||
                                celulaLower.includes('cód.') ||
-                               celulaLower.includes('data');
+                               celulaLower.includes('data') ||
+                               celulaLower.includes('sub?') ||
+                               celulaLower.includes('fonte') ||
+                               celulaLower.includes('deputado');
                     });
                     
                     if (temPalavrasChave) {
@@ -682,9 +694,6 @@
                             } else if (tipoColuna === 'codigo') {
                                 valor = formatarNumeroInteiro(valor);
                                 classeExtra = ' code-value';
-                            } else if (tipoColuna === 'inteiro') {
-                                valor = formatarNumeroInteiro(valor);
-                                classeExtra = ' integer-value';
                             } else if (tipoColuna === 'data') {
                                 valor = formatarDataExcel(valor);
                                 classeExtra = ' date-value';
