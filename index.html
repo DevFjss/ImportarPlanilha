@@ -219,6 +219,7 @@
         td.numeric-value {
             text-align: right;
             font-family: 'Courier New', monospace;
+            background-color: #f9f9f9;
         }
 
         .file-details {
@@ -407,27 +408,32 @@
                 });
             }
 
+            // Verifica se o valor é numérico (para formatação automática)
+            function ehValorNumerico(valor) {
+                if (valor === null || valor === undefined || valor === '') return false;
+                
+                // Tenta converter para número
+                if (typeof valor === 'number') return true;
+                
+                if (typeof valor === 'string') {
+                    // Remove espaços e verifica se é número
+                    const valorLimpo = valor.trim().replace(/\./g, '').replace(',', '.');
+                    return !isNaN(parseFloat(valorLimpo)) && isFinite(valorLimpo);
+                }
+                
+                return false;
+            }
+
             // Verifica se a coluna deve ser formatada como número (baseado no nome)
             function deveFormatarNumero(nomeColuna) {
                 if (!nomeColuna) return false;
                 
                 const nomeLower = nomeColuna.toLowerCase().trim();
-                // Lista de palavras-chave que indicam colunas numéricas
+                // Lista expandida de palavras-chave que indicam colunas numéricas
                 const colunasNumericas = [
-                    'limite atual implantado',
-                    'limite implantado',
-                    'limite disponivel',
-                    'saldo disponivel',
-                    'despesas',
-                    'limite',
-                    'valor',
-                    'preço',
-                    'preco',
-                    'total',
-                    'saldo',
-                    'custo',
-                    'orçamento',
-                    'orcamento'
+                    'valor', 'preço', 'preco', 'total', 'saldo', 'custo', 'orçamento', 'orcamento',
+                    'limite', 'disponivel', 'implantado', 'despesas', 'capital', 'custeio',
+                    'maximo', 'maximo configu', 'original', 'banco', 'remessa'
                 ];
                 
                 return colunasNumericas.some(col => 
@@ -437,7 +443,7 @@
 
             // Tenta encontrar a linha de cabeçalho real (ignorando linhas iniciais vazias)
             function encontrarCabecalhoReal(dados) {
-                for (let i = 0; i < Math.min(5, dados.length); i++) {
+                for (let i = 0; i < Math.min(10, dados.length); i++) {
                     const linha = dados[i];
                     // Verifica se a linha contém palavras que parecem cabeçalho
                     const temPalavrasChave = linha.some(celula => {
@@ -449,7 +455,12 @@
                                celulaLower.includes('centro de custo') ||
                                celulaLower.includes('despesas') ||
                                celulaLower.includes('valor') ||
-                               celulaLower.includes('total');
+                               celulaLower.includes('total') ||
+                               celulaLower.includes('custeio') ||
+                               celulaLower.includes('capital') ||
+                               celulaLower.includes('remessa') ||
+                               celulaLower.includes('cartao') ||
+                               celulaLower.includes('id');
                     });
                     
                     if (temPalavrasChave) {
@@ -510,7 +521,7 @@
 
                     // Encontra a linha do cabeçalho
                     const linhaCabecalho = encontrarCabecalhoReal(dados);
-                    const cabecalho = dados[linhaCabecalho];
+                    const cabecalho = dados[linhaCabecalho].map(col => col ? col.toString().trim() : '');
                     
                     // Pega as linhas de dados (após o cabeçalho) e remove linhas totalmente vazias
                     const linhas = dados.slice(linhaCabecalho + 1).filter(linha => 
@@ -530,21 +541,16 @@
                     // Constrói o cabeçalho da tabela (primeira linha: títulos)
                     let headerHtml = '<tr class="header-row">';
                     cabecalho.forEach((coluna, index) => {
-                        // Se o nome da coluna for vazio ou "sem nome", oculta a coluna
-                        const colunaVisivel = coluna && coluna.toString().trim() !== '' && 
-                                              !coluna.toString().toLowerCase().includes('sem nome');
-                        const estiloOculto = colunaVisivel ? '' : ' style="display: none;"';
-                        headerHtml += `<th${estiloOculto} style="width: 150px;">${coluna || 'Coluna ' + (index + 1)}</th>`;
+                        // Se o nome da coluna for vazio, usa um nome genérico mas mantém visível
+                        const nomeColuna = coluna && coluna !== '' ? coluna : `Coluna ${index + 1}`;
+                        headerHtml += `<th style="width: 150px;">${nomeColuna}</th>`;
                     });
                     headerHtml += '</tr>';
 
                     // Segunda linha: filtros
                     headerHtml += '<tr class="filter-row">';
                     cabecalho.forEach((coluna, index) => {
-                        const colunaVisivel = coluna && coluna.toString().trim() !== '' && 
-                                              !coluna.toString().toLowerCase().includes('sem nome');
-                        const estilo = colunaVisivel ? '' : ' style="display: none;"';
-                        headerHtml += `<th${estilo}><input type="text" class="filter-input" placeholder="Filtrar..." data-column="${index}"></th>`;
+                        headerHtml += `<th><input type="text" class="filter-input" placeholder="Filtrar..." data-column="${index}"></th>`;
                     });
                     headerHtml += '</tr>';
 
@@ -557,24 +563,19 @@
                         linha.forEach((celula, index) => {
                             const nomeColuna = cabecalho[index] || '';
                             let valor = celula !== undefined && celula !== null ? celula : '';
+                            let classeExtra = '';
                             
-                            const colunaVisivel = nomeColuna && nomeColuna.toString().trim() !== '' && 
-                                                  !nomeColuna.toString().toLowerCase().includes('sem nome');
-                            
-                            // Verifica se deve formatar como número
-                            if (deveFormatarNumero(nomeColuna)) {
-                                // Tenta converter para número e formatar
+                            // Verifica se deve formatar como número (baseado no nome da coluna OU no valor)
+                            if (deveFormatarNumero(nomeColuna) || ehValorNumerico(valor)) {
                                 const valorFormatado = formatarNumeroBrasil(valor);
-                                // Se a formatação retornou um número formatado, usa; senão, mantém original
-                                if (valorFormatado !== valor) {
+                                // Se a formatação retornou um número formatado, usa
+                                if (valorFormatado !== valor.toString()) {
                                     valor = valorFormatado;
+                                    classeExtra = ' numeric-value';
                                 }
                             }
                             
-                            const classeExtra = deveFormatarNumero(nomeColuna) ? ' class="numeric-value"' : '';
-                            const estiloOculto = !colunaVisivel ? ' style="display: none;"' : '';
-                            
-                            bodyHtml += `<td${classeExtra}${estiloOculto}>${valor}</td>`;
+                            bodyHtml += `<td class="${classeExtra}">${valor}</td>`;
                         });
                         bodyHtml += '</tr>';
                     });
@@ -613,7 +614,7 @@
                         const filtro = input.value.toLowerCase().trim();
                         if (filtro !== '') {
                             const celula = linha.children[index];
-                            if (celula && celula.style.display !== 'none') {
+                            if (celula) {
                                 const texto = celula.textContent.toLowerCase();
                                 if (!texto.includes(filtro)) {
                                     mostrar = false;
