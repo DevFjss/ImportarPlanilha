@@ -235,6 +235,13 @@
             color: #004080;
         }
 
+        td.code-value-no-format {
+            text-align: right;
+            font-family: 'Courier New', monospace;
+            background-color: #e8f4fd;
+            color: #004080;
+        }
+
         .file-details {
             margin-top: 10px;
             padding: 10px;
@@ -422,6 +429,27 @@
             }
 
             // Função para formatar números inteiros (sem decimais) - para códigos e IDs
+            // Agora SEM pontos de milhar
+            function formatarCodigoSemPonto(valor) {
+                if (valor === null || valor === undefined || valor === '') return '';
+                
+                // Se for string, remove qualquer formatação existente
+                if (typeof valor === 'string') {
+                    // Remove pontos e substitui vírgula (caso existam)
+                    valor = valor.replace(/\./g, '').replace(',', '');
+                }
+                
+                // Converte para número
+                let numero = parseFloat(valor);
+                
+                // Se não for número, retorna o valor original
+                if (isNaN(numero)) return valor;
+                
+                // Retorna como string sem formatação (sem pontos de milhar)
+                return numero.toString();
+            }
+
+            // Função para formatar números inteiros (com pontos de milhar) - para Remessa e outros
             function formatarNumeroInteiro(valor) {
                 if (valor === null || valor === undefined || valor === '') return '';
                 
@@ -437,13 +465,7 @@
                 // Se não for número, retorna o valor original
                 if (isNaN(numero)) return valor;
                 
-                // Verifica se é um número muito grande (como cartão de crédito)
-                // Se for maior que 10 dígitos, trata como string sem formatação de milhar
-                if (numero > 9999999999) {
-                    return valor.toString().replace(/\D/g, ''); // Remove não-dígitos
-                }
-                
-                // Arredonda para inteiro e formata sem decimais
+                // Arredonda para inteiro e formata sem decimais (com pontos de milhar)
                 return Math.round(numero).toLocaleString('pt-BR', {
                     minimumFractionDigits: 0,
                     maximumFractionDigits: 0,
@@ -519,35 +541,41 @@
                     return 'data';
                 }
                 
-                // Colunas de código/ID (devem ser inteiros sem decimais)
-                // Lista completa das colunas que você mencionou
+                // Colunas de código/ID (devem ser inteiros SEM pontos de milhar)
                 const colunasCodigo = [
                     'cod. sec', 'cod sec', 'cod sec.', 'cod.sec',
                     'cod. custo', 'cod custo', 'cod custo.', 'cod.custo',
                     'cod. inep', 'cod inep', 'cod inep.', 'cod.inep',
                     'id custro', 'id_custro', 'idcustro',
-                    'cartao', 'cartão',
-                    'remessa',
-                    'sub?fonte/deputado', 'sub?fonte', 'fonte/deputado', 'subfonte', 'deputado'
+                    'cartao', 'cartão'
                 ];
                 
                 // Verifica se o nome da coluna corresponde a qualquer um dos padrões de código
                 for (let codigo of colunasCodigo) {
                     if (nomeLower.includes(codigo)) {
-                        return 'codigo';
+                        return 'codigo_sem_ponto';
                     }
                 }
                 
-                // Verifica padrões parciais
+                // Verifica padrões parciais para códigos
                 if (nomeLower.startsWith('cod') || 
                     nomeLower.includes('cod.') || 
                     nomeLower.includes('cód.') ||
                     nomeLower.includes(' id ') ||
                     nomeLower.startsWith('id ') ||
                     nomeLower.includes('cartao') ||
-                    nomeLower.includes('cartão') ||
-                    nomeLower.includes('remessa')) {
-                    return 'codigo';
+                    nomeLower.includes('cartão')) {
+                    return 'codigo_sem_ponto';
+                }
+                
+                // Remessa deve ter pontos de milhar
+                if (nomeLower.includes('remessa')) {
+                    return 'inteiro';
+                }
+                
+                // Sub?Fonte/Deputado - manter sem pontos por enquanto (ajuste conforme necessário)
+                if (nomeLower.includes('sub?') || nomeLower.includes('fonte') || nomeLower.includes('deputado')) {
+                    return 'codigo_sem_ponto';
                 }
                 
                 // Colunas de valor monetário (com 2 casas decimais)
@@ -691,7 +719,10 @@
                             if (tipoColuna === 'monetario') {
                                 valor = formatarNumeroBrasil(valor);
                                 classeExtra = ' monetary-value';
-                            } else if (tipoColuna === 'codigo') {
+                            } else if (tipoColuna === 'codigo_sem_ponto') {
+                                valor = formatarCodigoSemPonto(valor);
+                                classeExtra = ' code-value';
+                            } else if (tipoColuna === 'inteiro') {
                                 valor = formatarNumeroInteiro(valor);
                                 classeExtra = ' code-value';
                             } else if (tipoColuna === 'data') {
@@ -700,7 +731,7 @@
                             } else if (ehValorNumerico(valor) && tipoColuna === 'texto') {
                                 // Se for numérico mas não identificado, formata como inteiro (padrão)
                                 valor = formatarNumeroInteiro(valor);
-                                classeExtra = ' integer-value';
+                                classeExtra = ' code-value';
                             }
                             
                             bodyHtml += `<td class="${classeExtra}">${valor}</td>`;
