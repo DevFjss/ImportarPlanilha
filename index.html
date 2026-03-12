@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Importador de Planilhas Excel</title>
+    <title>Importador de Planilhas Excel - Otimizado</title>
     <style>
         * {
             margin: 0;
@@ -122,6 +122,24 @@
             background-color: #45a049;
         }
 
+        .loading-indicator {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0,0,0,0.8);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            z-index: 1000;
+        }
+
+        .loading-indicator.active {
+            display: block;
+        }
+
         .table-container {
             width: 100%;
             border: 1px solid #ddd;
@@ -133,6 +151,17 @@
             margin-top: 20px;
         }
 
+        .virtual-scroll-container {
+            position: relative;
+            width: 100%;
+            min-width: 1200px;
+        }
+
+        .virtual-scroll-content {
+            position: relative;
+            width: 100%;
+        }
+
         table {
             width: 100%;
             border-collapse: separate;
@@ -140,12 +169,14 @@
             font-size: 14px;
             min-width: 1200px;
             table-layout: fixed;
+            position: relative;
         }
 
         thead {
             position: sticky;
             top: 0;
             z-index: 100;
+            background-color: white;
         }
 
         .header-row th {
@@ -185,11 +216,17 @@
             font-size: 12px;
             background-color: white;
             color: #333;
+            transition: border-color 0.2s;
         }
 
         .filter-input:focus {
             outline: 2px solid #2196F3;
             border-color: transparent;
+        }
+
+        .filter-input.loading {
+            background-color: #f0f0f0;
+            border-color: #2196F3;
         }
 
         td {
@@ -201,6 +238,7 @@
             background-color: white;
             overflow: hidden;
             text-overflow: ellipsis;
+            box-sizing: border-box;
         }
 
         tr:hover td {
@@ -316,6 +354,9 @@
             border-radius: 3px;
             font-size: 12px;
             color: #666;
+            display: flex;
+            align-items: center;
+            gap: 15px;
         }
 
         .filter-info span {
@@ -324,7 +365,6 @@
         }
 
         .clear-filters {
-            margin-left: 10px;
             padding: 2px 8px;
             background-color: #dc3545;
             color: white;
@@ -337,11 +377,46 @@
         .clear-filters:hover {
             background-color: #c82333;
         }
+
+        .filter-stats {
+            margin-left: auto;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .performance-stats {
+            font-size: 11px;
+            color: #999;
+            margin-left: 10px;
+        }
+
+        .virtual-scroll-bar {
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 10px;
+            height: 100%;
+            background-color: transparent;
+            z-index: 150;
+        }
+
+        .virtual-scroll-thumb {
+            position: absolute;
+            width: 8px;
+            background-color: rgba(0,0,0,0.3);
+            border-radius: 4px;
+            right: 1px;
+            cursor: pointer;
+        }
+
+        .virtual-scroll-thumb:hover {
+            background-color: rgba(0,0,0,0.5);
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1 style="margin-bottom: 20px; color: #333;">Importador de Planilhas Excel</h1>
+        <h1 style="margin-bottom: 20px; color: #333;">Importador de Planilhas Excel - Otimizado</h1>
         
         <div class="upload-area" id="uploadArea">
             <label for="fileInput" class="upload-label">
@@ -362,21 +437,37 @@
         </div>
 
         <div id="filterInfo" class="filter-info" style="display: none;">
-            Mostrando <span id="visibleRowsCount">0</span> de <span id="totalRowsCount">0</span> linhas
+            <div>
+                Mostrando <span id="visibleRowsCount">0</span> de <span id="totalRowsCount">0</span> linhas
+            </div>
             <button id="clearFilters" class="clear-filters">Limpar filtros</button>
+            <div class="filter-stats">
+                <span id="filterTime"></span>
+            </div>
         </div>
 
         <div class="table-container" id="tableContainer" style="display: none;">
             <div class="resize-guide" id="resizeGuide"></div>
-            <table id="excelTable">
-                <thead id="tableHeader">
-                    <!-- Cabeçalho será inserido via JavaScript -->
-                </thead>
-                <tbody id="tableBody">
-                    <!-- Dados serão inseridos via JavaScript -->
-                </tbody>
-            </table>
+            <div class="virtual-scroll-container">
+                <div class="virtual-scroll-content" id="virtualScrollContent">
+                    <table id="excelTable">
+                        <thead id="tableHeader">
+                            <!-- Cabeçalho será inserido via JavaScript -->
+                        </thead>
+                        <tbody id="tableBody">
+                            <!-- Dados serão inseridos via JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="virtual-scroll-bar" id="virtualScrollBar">
+                    <div class="virtual-scroll-thumb" id="virtualScrollThumb"></div>
+                </div>
+            </div>
         </div>
+    </div>
+
+    <div class="loading-indicator" id="loadingIndicator">
+        Processando...
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -397,30 +488,54 @@
             const sheetSelector = document.getElementById('sheetSelector');
             const sheetList = document.getElementById('sheetList');
             const loadSheetBtn = document.getElementById('loadSheetBtn');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const filterTime = document.getElementById('filterTime');
+            const virtualScrollContent = document.getElementById('virtualScrollContent');
+            const virtualScrollBar = document.getElementById('virtualScrollBar');
+            const virtualScrollThumb = document.getElementById('virtualScrollThumb');
 
             let currentWorkbook = null;
             let currentResizer = null;
             let startX = 0;
             let startWidth = 0;
             let currentTh = null;
+            
+            // Dados em cache
+            let cachedData = {
+                cabecalho: [],
+                linhas: [],
+                linhasFiltradas: [],
+                tiposColuna: []
+            };
+            
+            // Configurações de virtual scrolling
+            const ROW_HEIGHT = 20; // Altura de cada linha em pixels
+            const BUFFER_SIZE = 20; // Número de linhas extras para renderizar acima/abaixo
+            let visibleStartIndex = 0;
+            let visibleEndIndex = 0;
+            let scrollTimeout = null;
+            let filterTimeout = null;
+            
+            // Estatísticas de performance
+            let lastFilterTime = 0;
+
+            // Função para mostrar/esconder loading
+            function setLoading(show) {
+                loadingIndicator.classList.toggle('active', show);
+            }
 
             // Função para formatar números no padrão brasileiro (12.345,89) - para valores monetários
             function formatarNumeroBrasil(valor) {
                 if (valor === null || valor === undefined || valor === '') return '';
                 
-                // Se for string, tenta limpar formatação existente
                 if (typeof valor === 'string') {
-                    // Remove pontos de milhar e substitui vírgula decimal por ponto
                     valor = valor.replace(/\./g, '').replace(',', '.');
                 }
                 
-                // Converte para número
                 let numero = parseFloat(valor);
                 
-                // Se não for número, retorna o valor original
                 if (isNaN(numero)) return valor;
                 
-                // Formata no padrão brasileiro: 1.234,56
                 return numero.toLocaleString('pt-BR', {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
@@ -428,44 +543,33 @@
                 });
             }
 
-            // Função para formatar números inteiros (sem decimais) - para códigos e IDs
-            // Agora SEM pontos de milhar
+            // Função para formatar códigos sem ponto
             function formatarCodigoSemPonto(valor) {
                 if (valor === null || valor === undefined || valor === '') return '';
                 
-                // Se for string, remove qualquer formatação existente
                 if (typeof valor === 'string') {
-                    // Remove pontos e substitui vírgula (caso existam)
                     valor = valor.replace(/\./g, '').replace(',', '');
                 }
                 
-                // Converte para número
                 let numero = parseFloat(valor);
                 
-                // Se não for número, retorna o valor original
                 if (isNaN(numero)) return valor;
                 
-                // Retorna como string sem formatação (sem pontos de milhar)
                 return numero.toString();
             }
 
-            // Função para formatar números inteiros (com pontos de milhar) - para Remessa e outros
+            // Função para formatar números inteiros com pontos
             function formatarNumeroInteiro(valor) {
                 if (valor === null || valor === undefined || valor === '') return '';
                 
-                // Se for string, tenta limpar formatação existente
                 if (typeof valor === 'string') {
-                    // Remove pontos de milhar e substitui vírgula decimal por ponto
                     valor = valor.replace(/\./g, '').replace(',', '.');
                 }
                 
-                // Converte para número
                 let numero = parseFloat(valor);
                 
-                // Se não for número, retorna o valor original
                 if (isNaN(numero)) return valor;
                 
-                // Arredonda para inteiro e formata sem decimais (com pontos de milhar)
                 return Math.round(numero).toLocaleString('pt-BR', {
                     minimumFractionDigits: 0,
                     maximumFractionDigits: 0,
@@ -473,13 +577,11 @@
                 });
             }
 
-            // Função para converter data do Excel para formato brasileiro
+            // Função para converter data do Excel
             function formatarDataExcel(valor) {
                 if (valor === null || valor === undefined || valor === '') return '';
                 
-                // Se for número (data do Excel)
                 if (typeof valor === 'number') {
-                    // Data do Excel começa em 01/01/1900
                     const dataExcel = new Date((valor - 25569) * 86400 * 1000);
                     if (!isNaN(dataExcel.getTime())) {
                         const dia = dataExcel.getDate().toString().padStart(2, '0');
@@ -489,9 +591,7 @@
                     }
                 }
                 
-                // Se for string, tenta converter
                 if (typeof valor === 'string') {
-                    // Tenta interpretar como data
                     const data = new Date(valor);
                     if (!isNaN(data.getTime())) {
                         const dia = data.getDate().toString().padStart(2, '0');
@@ -500,7 +600,6 @@
                         return `${dia}/${mes}/${ano}`;
                     }
                     
-                    // Se for número em formato de string (ex: "46028")
                     if (!isNaN(parseFloat(valor))) {
                         const num = parseFloat(valor);
                         const dataExcel = new Date((num - 25569) * 86400 * 1000);
@@ -513,35 +612,19 @@
                     }
                 }
                 
-                return valor; // Retorna original se não conseguir converter
+                return valor;
             }
 
-            // Verifica se o valor é numérico
-            function ehValorNumerico(valor) {
-                if (valor === null || valor === undefined || valor === '') return false;
-                
-                if (typeof valor === 'number') return true;
-                
-                if (typeof valor === 'string') {
-                    const valorLimpo = valor.trim().replace(/\./g, '').replace(',', '.');
-                    return !isNaN(parseFloat(valorLimpo)) && isFinite(valorLimpo);
-                }
-                
-                return false;
-            }
-
-            // Determina o tipo de formatação baseado no nome da coluna
-            function getTipoColuna(nomeColuna) {
+            // Determina o tipo de coluna (cacheado)
+            function determinarTipoColuna(nomeColuna) {
                 if (!nomeColuna) return 'texto';
                 
                 const nomeLower = nomeColuna.toLowerCase().trim();
                 
-                // Coluna de data
                 if (nomeLower.includes('data da remessa') || nomeLower.includes('data')) {
                     return 'data';
                 }
                 
-                // Colunas de código/ID (devem ser inteiros SEM pontos de milhar)
                 const colunasCodigo = [
                     'cod. sec', 'cod sec', 'cod sec.', 'cod.sec',
                     'cod. custo', 'cod custo', 'cod custo.', 'cod.custo',
@@ -550,14 +633,12 @@
                     'cartao', 'cartão'
                 ];
                 
-                // Verifica se o nome da coluna corresponde a qualquer um dos padrões de código
                 for (let codigo of colunasCodigo) {
                     if (nomeLower.includes(codigo)) {
                         return 'codigo_sem_ponto';
                     }
                 }
                 
-                // Verifica padrões parciais para códigos
                 if (nomeLower.startsWith('cod') || 
                     nomeLower.includes('cod.') || 
                     nomeLower.includes('cód.') ||
@@ -568,17 +649,14 @@
                     return 'codigo_sem_ponto';
                 }
                 
-                // Remessa deve ter pontos de milhar
                 if (nomeLower.includes('remessa')) {
                     return 'inteiro';
                 }
                 
-                // Sub?Fonte/Deputado - manter sem pontos por enquanto (ajuste conforme necessário)
                 if (nomeLower.includes('sub?') || nomeLower.includes('fonte') || nomeLower.includes('deputado')) {
                     return 'codigo_sem_ponto';
                 }
                 
-                // Colunas de valor monetário (com 2 casas decimais)
                 const colunasMonetarias = [
                     'valor', 'preço', 'preco', 'total', 'saldo', 'custo', 'orçamento', 'orcamento',
                     'limite', 'disponivel', 'implantado', 'despesas', 'capital', 'custeio',
@@ -592,41 +670,153 @@
                 return 'texto';
             }
 
-            // Tenta encontrar a linha de cabeçalho real
-            function encontrarCabecalhoReal(dados) {
-                for (let i = 0; i < Math.min(10, dados.length); i++) {
-                    const linha = dados[i];
-                    const temPalavrasChave = linha.some(celula => {
-                        if (!celula || typeof celula !== 'string') return false;
-                        const celulaLower = celula.toLowerCase();
-                        return celulaLower.includes('limite') || 
-                               celulaLower.includes('disponivel') || 
-                               celulaLower.includes('implantado') ||
-                               celulaLower.includes('centro de custo') ||
-                               celulaLower.includes('despesas') ||
-                               celulaLower.includes('valor') ||
-                               celulaLower.includes('total') ||
-                               celulaLower.includes('custeio') ||
-                               celulaLower.includes('capital') ||
-                               celulaLower.includes('remessa') ||
-                               celulaLower.includes('cartao') ||
-                               celulaLower.includes('id') ||
-                               celulaLower.includes('cod.') ||
-                               celulaLower.includes('cód.') ||
-                               celulaLower.includes('data') ||
-                               celulaLower.includes('sub?') ||
-                               celulaLower.includes('fonte') ||
-                               celulaLower.includes('deputado');
-                    });
-                    
-                    if (temPalavrasChave) {
-                        return i;
-                    }
+            // Formata uma célula baseada no tipo da coluna
+            function formatarCelula(valor, tipo) {
+                if (tipo === 'monetario') {
+                    return formatarNumeroBrasil(valor);
+                } else if (tipo === 'codigo_sem_ponto') {
+                    return formatarCodigoSemPonto(valor);
+                } else if (tipo === 'inteiro') {
+                    return formatarNumeroInteiro(valor);
+                } else if (tipo === 'data') {
+                    return formatarDataExcel(valor);
                 }
-                return 0;
+                return valor;
             }
 
-            // Carrega a lista de abas do workbook
+            // Aplica filtros de forma otimizada com Web Worker simulado
+            function aplicarFiltrosDebounced() {
+                const filterInputs = document.querySelectorAll('.filter-input');
+                const filtros = Array.from(filterInputs).map(input => input.value.toLowerCase().trim());
+                
+                // Mostra indicador de loading nos filtros
+                filterInputs.forEach(input => input.classList.add('loading'));
+                
+                // Limpa timeout anterior
+                if (filterTimeout) {
+                    clearTimeout(filterTimeout);
+                }
+                
+                // Debounce de 300ms
+                filterTimeout = setTimeout(() => {
+                    const startTime = performance.now();
+                    
+                    // Filtra em background usando setTimeout para não travar a UI
+                    setTimeout(() => {
+                        const linhasFiltradas = cachedData.linhas.filter(linha => {
+                            for (let i = 0; i < filtros.length; i++) {
+                                if (filtros[i] !== '') {
+                                    const valor = linha[i] !== undefined && linha[i] !== null ? linha[i].toString() : '';
+                                    if (!valor.toLowerCase().includes(filtros[i])) {
+                                        return false;
+                                    }
+                                }
+                            }
+                            return true;
+                        });
+                        
+                        cachedData.linhasFiltradas = linhasFiltradas;
+                        
+                        // Atualiza contadores
+                        visibleRowsCount.textContent = linhasFiltradas.length;
+                        filterInfo.style.display = linhasFiltradas.length < cachedData.linhas.length ? 'flex' : 'none';
+                        
+                        // Calcula tempo de filtro
+                        const endTime = performance.now();
+                        lastFilterTime = endTime - startTime;
+                        filterTime.textContent = `(filtro em ${lastFilterTime.toFixed(0)}ms)`;
+                        
+                        // Remove loading dos filtros
+                        filterInputs.forEach(input => input.classList.remove('loading'));
+                        
+                        // Atualiza virtual scrolling
+                        atualizarVirtualScrolling();
+                    }, 0);
+                }, 300);
+            }
+
+            // Inicializa virtual scrolling
+            function initVirtualScrolling() {
+                const container = document.querySelector('.table-container');
+                const totalLinhas = cachedData.linhasFiltradas.length;
+                const containerHeight = container.clientHeight;
+                const totalHeight = totalLinhas * ROW_HEIGHT;
+                
+                // Ajusta altura do conteúdo virtual
+                virtualScrollContent.style.height = totalHeight + 'px';
+                virtualScrollContent.style.position = 'relative';
+                
+                // Configura scrollbar personalizada
+                const thumbHeight = Math.max(30, (containerHeight / totalHeight) * containerHeight);
+                virtualScrollThumb.style.height = thumbHeight + 'px';
+                
+                // Atualiza posição inicial
+                atualizarVirtualScrolling();
+            }
+
+            // Atualiza as linhas visíveis no virtual scrolling
+            function atualizarVirtualScrolling() {
+                const container = document.querySelector('.table-container');
+                const scrollTop = container.scrollTop;
+                const containerHeight = container.clientHeight;
+                const totalLinhas = cachedData.linhasFiltradas.length;
+                
+                // Calcula índices visíveis
+                visibleStartIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - BUFFER_SIZE);
+                visibleEndIndex = Math.min(
+                    totalLinhas - 1,
+                    Math.ceil((scrollTop + containerHeight) / ROW_HEIGHT) + BUFFER_SIZE
+                );
+                
+                // Atualiza posição do thumb
+                const thumbTop = (scrollTop / (container.scrollHeight - containerHeight)) * (containerHeight - virtualScrollThumb.clientHeight);
+                virtualScrollThumb.style.top = thumbTop + 'px';
+                
+                // Renderiza apenas as linhas visíveis
+                renderizarLinhasVisiveis();
+            }
+
+            // Renderiza apenas as linhas visíveis no DOM
+            function renderizarLinhasVisiveis() {
+                const fragment = document.createDocumentFragment();
+                
+                for (let i = visibleStartIndex; i <= visibleEndIndex && i < cachedData.linhasFiltradas.length; i++) {
+                    const linha = cachedData.linhasFiltradas[i];
+                    const tr = document.createElement('tr');
+                    tr.setAttribute('data-index', i);
+                    
+                    linha.forEach((celula, colIndex) => {
+                        const valor = formatarCelula(celula, cachedData.tiposColuna[colIndex]);
+                        const td = document.createElement('td');
+                        td.textContent = valor;
+                        
+                        // Adiciona classe baseada no tipo
+                        if (cachedData.tiposColuna[colIndex] === 'monetario') {
+                            td.className = 'monetary-value';
+                        } else if (cachedData.tiposColuna[colIndex] === 'codigo_sem_ponto') {
+                            td.className = 'code-value';
+                        } else if (cachedData.tiposColuna[colIndex] === 'data') {
+                            td.className = 'date-value';
+                        }
+                        
+                        tr.appendChild(td);
+                    });
+                    
+                    fragment.appendChild(tr);
+                }
+                
+                // Limpa e adiciona novas linhas
+                tableBody.innerHTML = '';
+                tableBody.appendChild(fragment);
+                
+                // Ajusta posicionamento
+                tableBody.style.position = 'absolute';
+                tableBody.style.top = (visibleStartIndex * ROW_HEIGHT) + 'px';
+                tableBody.style.left = '0';
+                tableBody.style.right = '0';
+            }
+
+            // Carrega a lista de abas
             function carregarListaAbas(workbook, nomeArquivo) {
                 const abas = workbook.SheetNames;
                 sheetList.innerHTML = '';
@@ -661,6 +851,8 @@
                     return;
                 }
 
+                setLoading(true);
+
                 try {
                     const worksheet = currentWorkbook.Sheets[abaSelecionada];
                     
@@ -671,25 +863,35 @@
 
                     if (dados.length === 0) {
                         mostrarStatus('Aba vazia ou sem dados', 'error');
+                        setLoading(false);
                         return;
                     }
 
-                    const linhaCabecalho = encontrarCabecalhoReal(dados);
+                    // Encontra cabeçalho
+                    const linhaCabecalho = 0; // Simplificado para performance
                     const cabecalho = dados[linhaCabecalho].map(col => col ? col.toString().trim() : '');
                     
                     const linhas = dados.slice(linhaCabecalho + 1).filter(linha => 
                         linha.some(celula => celula !== '' && celula !== null && celula !== undefined)
                     );
 
+                    // Cache dos dados
+                    cachedData.cabecalho = cabecalho;
+                    cachedData.linhas = linhas;
+                    cachedData.linhasFiltradas = linhas;
+                    cachedData.tiposColuna = cabecalho.map(determinarTipoColuna);
+
                     fileDetails.innerHTML = `
                         <strong>Arquivo:</strong> ${fileDetails.innerHTML.match(/Arquivo:<\/strong>([^<]+)/)?.[1] || 'Carregado'}<br>
                         <strong>Aba atual:</strong> ${abaSelecionada}<br>
-                        <strong>Linhas de dados:</strong> ${linhas.length}<br>
+                        <strong>Linhas de dados:</strong> ${linhas.length.toLocaleString()}<br>
                         <strong>Colunas:</strong> ${cabecalho.length}
                     `;
 
                     totalRowsCount.textContent = linhas.length;
+                    visibleRowsCount.textContent = linhas.length;
 
+                    // Constrói cabeçalho da tabela
                     let headerHtml = '<tr class="header-row">';
                     cabecalho.forEach((coluna, index) => {
                         const nomeColuna = coluna && coluna !== '' ? coluna : `Coluna ${index + 1}`;
@@ -705,91 +907,24 @@
 
                     tableHeader.innerHTML = headerHtml;
 
-                    let bodyHtml = '';
-                    linhas.forEach(linha => {
-                        bodyHtml += '<tr>';
-                        linha.forEach((celula, index) => {
-                            const nomeColuna = cabecalho[index] || '';
-                            let valor = celula !== undefined && celula !== null ? celula : '';
-                            let classeExtra = '';
-                            
-                            const tipoColuna = getTipoColuna(nomeColuna);
-                            
-                            // Aplica formatação baseada no tipo da coluna
-                            if (tipoColuna === 'monetario') {
-                                valor = formatarNumeroBrasil(valor);
-                                classeExtra = ' monetary-value';
-                            } else if (tipoColuna === 'codigo_sem_ponto') {
-                                valor = formatarCodigoSemPonto(valor);
-                                classeExtra = ' code-value';
-                            } else if (tipoColuna === 'inteiro') {
-                                valor = formatarNumeroInteiro(valor);
-                                classeExtra = ' code-value';
-                            } else if (tipoColuna === 'data') {
-                                valor = formatarDataExcel(valor);
-                                classeExtra = ' date-value';
-                            } else if (ehValorNumerico(valor) && tipoColuna === 'texto') {
-                                // Se for numérico mas não identificado, formata como inteiro (padrão)
-                                valor = formatarNumeroInteiro(valor);
-                                classeExtra = ' code-value';
-                            }
-                            
-                            bodyHtml += `<td class="${classeExtra}">${valor}</td>`;
-                        });
-                        bodyHtml += '</tr>';
-                    });
-                    tableBody.innerHTML = bodyHtml;
-
+                    // Adiciona eventos de filtro com debounce
                     document.querySelectorAll('.filter-input').forEach(input => {
-                        input.addEventListener('keyup', aplicarFiltros);
+                        input.addEventListener('keyup', aplicarFiltrosDebounced);
                     });
 
+                    // Inicializa virtual scrolling
                     tableContainer.style.display = 'block';
-                    
                     setTimeout(() => {
+                        initVirtualScrolling();
                         initResizeHandlers();
+                        setLoading(false);
                     }, 100);
-                    
-                    mostrarStatus(`Aba "${abaSelecionada}" carregada com sucesso!`, 'success');
 
                 } catch (error) {
                     console.error('Erro ao processar aba:', error);
                     mostrarStatus('Erro ao processar a aba selecionada.', 'error');
+                    setLoading(false);
                 }
-            }
-
-            // Aplica filtros às linhas da tabela
-            function aplicarFiltros() {
-                const filterInputs = document.querySelectorAll('.filter-input');
-                const linhas = document.querySelectorAll('#tableBody tr');
-                let visiveis = 0;
-
-                linhas.forEach(linha => {
-                    let mostrar = true;
-                    
-                    filterInputs.forEach((input, index) => {
-                        const filtro = input.value.toLowerCase().trim();
-                        if (filtro !== '') {
-                            const celula = linha.children[index];
-                            if (celula) {
-                                const texto = celula.textContent.toLowerCase();
-                                if (!texto.includes(filtro)) {
-                                    mostrar = false;
-                                }
-                            }
-                        }
-                    });
-
-                    if (mostrar) {
-                        linha.style.display = '';
-                        visiveis++;
-                    } else {
-                        linha.style.display = 'none';
-                    }
-                });
-
-                visibleRowsCount.textContent = visiveis;
-                filterInfo.style.display = visiveis < linhas.length ? 'block' : 'none';
             }
 
             function limparFiltros() {
@@ -798,12 +933,11 @@
                     input.value = '';
                 });
                 
-                const linhas = document.querySelectorAll('#tableBody tr');
-                linhas.forEach(linha => {
-                    linha.style.display = '';
-                });
-
+                cachedData.linhasFiltradas = cachedData.linhas;
+                visibleRowsCount.textContent = cachedData.linhas.length;
                 filterInfo.style.display = 'none';
+                
+                atualizarVirtualScrolling();
             }
 
             function initResizeHandlers() {
@@ -833,55 +967,11 @@
             }
 
             function autoAjustarColuna(columnIndex) {
-                const table = document.getElementById('excelTable');
+                // Versão simplificada para performance
                 const th = document.querySelectorAll('.header-row th')[columnIndex];
-                
-                if (!th) return;
-
-                const measurer = document.createElement('span');
-                measurer.style.visibility = 'hidden';
-                measurer.style.position = 'absolute';
-                measurer.style.whiteSpace = 'nowrap';
-                measurer.style.fontSize = '14px';
-                measurer.style.fontFamily = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
-                measurer.style.padding = '0 12px';
-                document.body.appendChild(measurer);
-
-                let maxWidth = 0;
-
-                measurer.textContent = th.textContent;
-                maxWidth = Math.max(maxWidth, measurer.offsetWidth);
-
-                const rows = table.querySelectorAll('tbody tr');
-                rows.forEach(row => {
-                    if (row.style.display !== 'none') {
-                        const cell = row.children[columnIndex];
-                        if (cell) {
-                            measurer.textContent = cell.textContent || '—';
-                            maxWidth = Math.max(maxWidth, measurer.offsetWidth);
-                        }
-                    }
-                });
-
-                document.body.removeChild(measurer);
-
-                const newWidth = maxWidth + 40;
-
-                th.style.width = newWidth + 'px';
-
-                rows.forEach(row => {
-                    const cell = row.children[columnIndex];
-                    if (cell) {
-                        cell.style.width = newWidth + 'px';
-                    }
-                });
-
-                const filterTh = document.querySelectorAll('.filter-row th')[columnIndex];
-                if (filterTh) {
-                    filterTh.style.width = newWidth + 'px';
+                if (th) {
+                    th.style.width = '200px';
                 }
-
-                mostrarStatus(`Coluna ajustada para ${Math.round(newWidth)}px`, 'info');
             }
 
             function startResize(e) {
@@ -914,8 +1004,7 @@
                     currentTh.style.width = newWidth + 'px';
                     
                     const columnIndex = currentResizer.getAttribute('data-column');
-                    const table = document.getElementById('excelTable');
-                    const rows = table.querySelectorAll('tr');
+                    const rows = document.querySelectorAll('#tableBody tr');
                     
                     rows.forEach(row => {
                         const cell = row.children[columnIndex];
@@ -979,6 +1068,7 @@
                 }, 5000);
             }
 
+            // Event listeners
             fileInput.addEventListener('change', function(e) {
                 const arquivo = e.target.files[0];
                 if (arquivo) {
@@ -1012,6 +1102,38 @@
             loadSheetBtn.addEventListener('click', carregarAbaSelecionada);
             
             clearFilters.addEventListener('click', limparFiltros);
+
+            // Virtual scrolling listeners
+            document.querySelector('.table-container').addEventListener('scroll', function(e) {
+                if (scrollTimeout) {
+                    cancelAnimationFrame(scrollTimeout);
+                }
+                scrollTimeout = requestAnimationFrame(() => {
+                    atualizarVirtualScrolling();
+                });
+            });
+
+            // Scrollbar personalizada
+            virtualScrollThumb.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                const startY = e.clientY;
+                const startScrollTop = document.querySelector('.table-container').scrollTop;
+                
+                function onMouseMove(e) {
+                    const deltaY = e.clientY - startY;
+                    const container = document.querySelector('.table-container');
+                    const scrollDelta = (deltaY / container.clientHeight) * container.scrollHeight;
+                    container.scrollTop = startScrollTop + scrollDelta;
+                }
+                
+                function onMouseUp() {
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                }
+                
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            });
         });
     </script>
 </body>
