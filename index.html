@@ -222,6 +222,18 @@
             background-color: #f9f9f9;
         }
 
+        td.date-value {
+            text-align: center;
+            font-family: 'Courier New', monospace;
+            background-color: #f0f8ff;
+        }
+
+        td.integer-value {
+            text-align: right;
+            font-family: 'Courier New', monospace;
+            background-color: #fff3e0;
+        }
+
         .file-details {
             margin-top: 10px;
             padding: 10px;
@@ -408,15 +420,80 @@
                 });
             }
 
-            // Verifica se o valor é numérico (para formatação automática)
+            // Função para formatar números inteiros (sem decimais)
+            function formatarNumeroInteiro(valor) {
+                if (valor === null || valor === undefined || valor === '') return '';
+                
+                // Se for string, tenta limpar formatação existente
+                if (typeof valor === 'string') {
+                    // Remove pontos de milhar e substitui vírgula decimal por ponto
+                    valor = valor.replace(/\./g, '').replace(',', '.');
+                }
+                
+                // Converte para número
+                let numero = parseFloat(valor);
+                
+                // Se não for número, retorna o valor original
+                if (isNaN(numero)) return valor;
+                
+                // Arredonda para inteiro e formata sem decimais
+                return Math.round(numero).toLocaleString('pt-BR', {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0,
+                    useGrouping: true
+                });
+            }
+
+            // Função para converter data do Excel para formato brasileiro
+            function formatarDataExcel(valor) {
+                if (valor === null || valor === undefined || valor === '') return '';
+                
+                // Se for número (data do Excel)
+                if (typeof valor === 'number') {
+                    // Data do Excel começa em 01/01/1900
+                    const dataExcel = new Date((valor - 25569) * 86400 * 1000);
+                    if (!isNaN(dataExcel.getTime())) {
+                        const dia = dataExcel.getDate().toString().padStart(2, '0');
+                        const mes = (dataExcel.getMonth() + 1).toString().padStart(2, '0');
+                        const ano = dataExcel.getFullYear();
+                        return `${dia}/${mes}/${ano}`;
+                    }
+                }
+                
+                // Se for string, tenta converter
+                if (typeof valor === 'string') {
+                    // Tenta interpretar como data
+                    const data = new Date(valor);
+                    if (!isNaN(data.getTime())) {
+                        const dia = data.getDate().toString().padStart(2, '0');
+                        const mes = (data.getMonth() + 1).toString().padStart(2, '0');
+                        const ano = data.getFullYear();
+                        return `${dia}/${mes}/${ano}`;
+                    }
+                    
+                    // Se for número em formato de string (ex: "46028")
+                    if (!isNaN(parseFloat(valor))) {
+                        const num = parseFloat(valor);
+                        const dataExcel = new Date((num - 25569) * 86400 * 1000);
+                        if (!isNaN(dataExcel.getTime())) {
+                            const dia = dataExcel.getDate().toString().padStart(2, '0');
+                            const mes = (dataExcel.getMonth() + 1).toString().padStart(2, '0');
+                            const ano = dataExcel.getFullYear();
+                            return `${dia}/${mes}/${ano}`;
+                        }
+                    }
+                }
+                
+                return valor; // Retorna original se não conseguir converter
+            }
+
+            // Verifica se o valor é numérico
             function ehValorNumerico(valor) {
                 if (valor === null || valor === undefined || valor === '') return false;
                 
-                // Tenta converter para número
                 if (typeof valor === 'number') return true;
                 
                 if (typeof valor === 'string') {
-                    // Remove espaços e verifica se é número
                     const valorLimpo = valor.trim().replace(/\./g, '').replace(',', '.');
                     return !isNaN(parseFloat(valorLimpo)) && isFinite(valorLimpo);
                 }
@@ -424,28 +501,40 @@
                 return false;
             }
 
-            // Verifica se a coluna deve ser formatada como número (baseado no nome)
-            function deveFormatarNumero(nomeColuna) {
-                if (!nomeColuna) return false;
+            // Determina o tipo de formatação baseado no nome da coluna
+            function getTipoColuna(nomeColuna) {
+                if (!nomeColuna) return 'texto';
                 
                 const nomeLower = nomeColuna.toLowerCase().trim();
-                // Lista expandida de palavras-chave que indicam colunas numéricas
-                const colunasNumericas = [
+                
+                // Colunas de data
+                if (nomeLower.includes('data') || nomeLower.includes('dt_')) {
+                    return 'data';
+                }
+                
+                // Coluna Remessa - deve ser inteiro
+                if (nomeLower === 'remessa' || nomeLower.includes('remessa')) {
+                    return 'inteiro';
+                }
+                
+                // Colunas de valor monetário (com 2 casas decimais)
+                const colunasMonetarias = [
                     'valor', 'preço', 'preco', 'total', 'saldo', 'custo', 'orçamento', 'orcamento',
                     'limite', 'disponivel', 'implantado', 'despesas', 'capital', 'custeio',
-                    'maximo', 'maximo configu', 'original', 'banco', 'remessa'
+                    'original', 'banco', 'maximo configu'
                 ];
                 
-                return colunasNumericas.some(col => 
-                    nomeLower.includes(col)
-                );
+                if (colunasMonetarias.some(col => nomeLower.includes(col))) {
+                    return 'monetario';
+                }
+                
+                return 'texto';
             }
 
-            // Tenta encontrar a linha de cabeçalho real (ignorando linhas iniciais vazias)
+            // Tenta encontrar a linha de cabeçalho real
             function encontrarCabecalhoReal(dados) {
                 for (let i = 0; i < Math.min(10, dados.length); i++) {
                     const linha = dados[i];
-                    // Verifica se a linha contém palavras que parecem cabeçalho
                     const temPalavrasChave = linha.some(celula => {
                         if (!celula || typeof celula !== 'string') return false;
                         const celulaLower = celula.toLowerCase();
@@ -460,14 +549,15 @@
                                celulaLower.includes('capital') ||
                                celulaLower.includes('remessa') ||
                                celulaLower.includes('cartao') ||
-                               celulaLower.includes('id');
+                               celulaLower.includes('id') ||
+                               celulaLower.includes('data');
                     });
                     
                     if (temPalavrasChave) {
                         return i;
                     }
                 }
-                return 0; // Se não encontrar, assume primeira linha
+                return 0;
             }
 
             // Carrega a lista de abas do workbook
@@ -508,7 +598,6 @@
                 try {
                     const worksheet = currentWorkbook.Sheets[abaSelecionada];
                     
-                    // Converte a planilha em matriz de dados
                     const dados = XLSX.utils.sheet_to_json(worksheet, { 
                         header: 1,
                         defval: '' 
@@ -519,16 +608,13 @@
                         return;
                     }
 
-                    // Encontra a linha do cabeçalho
                     const linhaCabecalho = encontrarCabecalhoReal(dados);
                     const cabecalho = dados[linhaCabecalho].map(col => col ? col.toString().trim() : '');
                     
-                    // Pega as linhas de dados (após o cabeçalho) e remove linhas totalmente vazias
                     const linhas = dados.slice(linhaCabecalho + 1).filter(linha => 
                         linha.some(celula => celula !== '' && celula !== null && celula !== undefined)
                     );
 
-                    // Atualiza detalhes do arquivo
                     fileDetails.innerHTML = `
                         <strong>Arquivo:</strong> ${fileDetails.innerHTML.match(/Arquivo:<\/strong>([^<]+)/)?.[1] || 'Carregado'}<br>
                         <strong>Aba atual:</strong> ${abaSelecionada}<br>
@@ -538,16 +624,13 @@
 
                     totalRowsCount.textContent = linhas.length;
 
-                    // Constrói o cabeçalho da tabela (primeira linha: títulos)
                     let headerHtml = '<tr class="header-row">';
                     cabecalho.forEach((coluna, index) => {
-                        // Se o nome da coluna for vazio, usa um nome genérico mas mantém visível
                         const nomeColuna = coluna && coluna !== '' ? coluna : `Coluna ${index + 1}`;
                         headerHtml += `<th style="width: 150px;">${nomeColuna}</th>`;
                     });
                     headerHtml += '</tr>';
 
-                    // Segunda linha: filtros
                     headerHtml += '<tr class="filter-row">';
                     cabecalho.forEach((coluna, index) => {
                         headerHtml += `<th><input type="text" class="filter-input" placeholder="Filtrar..." data-column="${index}"></th>`;
@@ -556,7 +639,6 @@
 
                     tableHeader.innerHTML = headerHtml;
 
-                    // Constrói o corpo da tabela
                     let bodyHtml = '';
                     linhas.forEach(linha => {
                         bodyHtml += '<tr>';
@@ -565,14 +647,22 @@
                             let valor = celula !== undefined && celula !== null ? celula : '';
                             let classeExtra = '';
                             
-                            // Verifica se deve formatar como número (baseado no nome da coluna OU no valor)
-                            if (deveFormatarNumero(nomeColuna) || ehValorNumerico(valor)) {
-                                const valorFormatado = formatarNumeroBrasil(valor);
-                                // Se a formatação retornou um número formatado, usa
-                                if (valorFormatado !== valor.toString()) {
-                                    valor = valorFormatado;
-                                    classeExtra = ' numeric-value';
-                                }
+                            const tipoColuna = getTipoColuna(nomeColuna);
+                            
+                            // Aplica formatação baseada no tipo da coluna
+                            if (tipoColuna === 'monetario') {
+                                valor = formatarNumeroBrasil(valor);
+                                classeExtra = ' numeric-value';
+                            } else if (tipoColuna === 'inteiro') {
+                                valor = formatarNumeroInteiro(valor);
+                                classeExtra = ' integer-value';
+                            } else if (tipoColuna === 'data') {
+                                valor = formatarDataExcel(valor);
+                                classeExtra = ' date-value';
+                            } else if (ehValorNumerico(valor) && tipoColuna === 'texto') {
+                                // Se for numérico mas não identificado, formata como número padrão
+                                valor = formatarNumeroBrasil(valor);
+                                classeExtra = ' numeric-value';
                             }
                             
                             bodyHtml += `<td class="${classeExtra}">${valor}</td>`;
@@ -581,14 +671,12 @@
                     });
                     tableBody.innerHTML = bodyHtml;
 
-                    // Adiciona eventos de filtro
                     document.querySelectorAll('.filter-input').forEach(input => {
                         input.addEventListener('keyup', aplicarFiltros);
                     });
 
                     tableContainer.style.display = 'block';
                     
-                    // Inicializa os redimensionadores após um pequeno atraso
                     setTimeout(() => {
                         initResizeHandlers();
                     }, 100);
@@ -635,7 +723,6 @@
                 filterInfo.style.display = visiveis < linhas.length ? 'block' : 'none';
             }
 
-            // Limpa todos os filtros
             function limparFiltros() {
                 const filterInputs = document.querySelectorAll('.filter-input');
                 filterInputs.forEach(input => {
@@ -650,7 +737,6 @@
                 filterInfo.style.display = 'none';
             }
 
-            // Inicializa os manipuladores de redimensionamento de coluna
             function initResizeHandlers() {
                 const thElements = document.querySelectorAll('.header-row th');
                 
@@ -677,7 +763,6 @@
                 });
             }
 
-            // Auto-ajusta a largura da coluna com base no conteúdo
             function autoAjustarColuna(columnIndex) {
                 const table = document.getElementById('excelTable');
                 const th = document.querySelectorAll('.header-row th')[columnIndex];
@@ -695,11 +780,9 @@
 
                 let maxWidth = 0;
 
-                // Título da coluna
                 measurer.textContent = th.textContent;
                 maxWidth = Math.max(maxWidth, measurer.offsetWidth);
 
-                // Conteúdo das células visíveis
                 const rows = table.querySelectorAll('tbody tr');
                 rows.forEach(row => {
                     if (row.style.display !== 'none') {
@@ -713,7 +796,7 @@
 
                 document.body.removeChild(measurer);
 
-                const newWidth = maxWidth + 40; // Padding extra
+                const newWidth = maxWidth + 40;
 
                 th.style.width = newWidth + 'px';
 
@@ -732,7 +815,6 @@
                 mostrarStatus(`Coluna ajustada para ${Math.round(newWidth)}px`, 'info');
             }
 
-            // Inicia o redimensionamento
             function startResize(e) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -752,7 +834,6 @@
                 currentResizer.classList.add('resizing');
             }
 
-            // Redimensiona durante o movimento do mouse
             function resize(e) {
                 if (!currentResizer || !currentTh) return;
 
@@ -781,7 +862,6 @@
                 }
             }
 
-            // Finaliza o redimensionamento
             function stopResize() {
                 if (currentResizer) {
                     currentResizer.classList.remove('resizing');
@@ -797,7 +877,6 @@
                 currentTh = null;
             }
 
-            // Processa o arquivo selecionado
             function processarArquivo(arquivo) {
                 const reader = new FileReader();
                 
@@ -821,7 +900,6 @@
                 reader.readAsArrayBuffer(arquivo);
             }
 
-            // Mostra mensagem de status temporária
             function mostrarStatus(mensagem, tipo) {
                 statusMessage.style.display = 'block';
                 statusMessage.className = `status-message ${tipo}`;
@@ -832,7 +910,6 @@
                 }, 5000);
             }
 
-            // Eventos
             fileInput.addEventListener('change', function(e) {
                 const arquivo = e.target.files[0];
                 if (arquivo) {
