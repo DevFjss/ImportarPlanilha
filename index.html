@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Importador de Planilhas Excel - Otimizado</title>
+    <title>Importador de Planilhas Excel - Google Sheets</title>
     <style>
         * {
             margin: 0;
@@ -122,6 +122,114 @@
             background-color: #45a049;
         }
 
+        .google-sheets-config {
+            margin: 20px 0;
+            padding: 20px;
+            background-color: #f0f7fb;
+            border-radius: 8px;
+            border-left: 4px solid #0F9D58;
+            display: none;
+        }
+
+        .google-sheets-config.active {
+            display: block;
+        }
+
+        .google-sheets-config h3 {
+            color: #0F9D58;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .config-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .config-row label {
+            font-weight: 600;
+            color: #333;
+            min-width: 100px;
+        }
+
+        .config-row input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+            min-width: 300px;
+        }
+
+        .config-row input:focus {
+            outline: 2px solid #0F9D58;
+            border-color: transparent;
+        }
+
+        .config-row button {
+            padding: 8px 20px;
+            background-color: #0F9D58;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .config-row button:hover {
+            background-color: #0b8043;
+        }
+
+        .config-row button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .auth-section {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #e8f0fe;
+            border-radius: 4px;
+        }
+
+        .auth-section p {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .auth-section button {
+            padding: 8px 16px;
+            background-color: #4285F4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .auth-section button:hover {
+            background-color: #3367d6;
+        }
+
+        .auth-status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .auth-status.success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .auth-status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
         .export-container {
             margin: 15px 0;
             display: flex;
@@ -130,8 +238,8 @@
         }
 
         .export-btn {
-            padding: 8px 20px;
-            background-color: #28a745;
+            padding: 10px 24px;
+            background-color: #0F9D58;
             color: white;
             border: none;
             border-radius: 4px;
@@ -142,7 +250,12 @@
         }
 
         .export-btn:hover {
-            background-color: #218838;
+            background-color: #0b8043;
+        }
+
+        .export-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
         }
 
         .loading-indicator {
@@ -296,13 +409,6 @@
             color: #004080;
         }
 
-        td.code-value-no-format {
-            text-align: right;
-            font-family: 'Courier New', monospace;
-            background-color: #e8f4fd;
-            color: #004080;
-        }
-
         .file-details {
             margin-top: 10px;
             padding: 10px;
@@ -407,12 +513,6 @@
             color: #666;
         }
 
-        .performance-stats {
-            font-size: 11px;
-            color: #999;
-            margin-left: 10px;
-        }
-
         .virtual-scroll-bar {
             position: absolute;
             right: 0;
@@ -439,7 +539,7 @@
 </head>
 <body>
     <div class="container">
-        <h1 style="margin-bottom: 20px; color: #333;">Importador de Planilhas Excel - Otimizado</h1>
+        <h1 style="margin-bottom: 20px; color: #333;">Importador de Planilhas Excel - Google Sheets</h1>
         
         <div class="upload-area" id="uploadArea">
             <label for="fileInput" class="upload-label">
@@ -452,11 +552,37 @@
         </div>
 
         <div class="sheet-selector" id="sheetSelector">
-            <label for="sheetList">Selecione a aba:</label>
+            <label for="sheetList">Selecione a aba do Excel:</label>
             <select id="sheetList">
                 <option value="">Carregando abas...</option>
             </select>
             <button class="load-sheet-btn" id="loadSheetBtn">Carregar aba selecionada</button>
+        </div>
+
+        <!-- Configuração do Google Sheets -->
+        <div class="google-sheets-config" id="googleSheetsConfig">
+            <h3>📊 Exportar para Google Sheets</h3>
+            
+            <div class="config-row">
+                <label>ID da Planilha:</label>
+                <input type="text" id="sheetId" value="1aCj4zG0UGLf-49Ph18LZPf92kkJAxyS0zOqI_FBIuDI" placeholder="ID da planilha do Google Sheets">
+            </div>
+            
+            <div class="config-row">
+                <label>Aba destino:</label>
+                <input type="text" id="sheetTab" value="exportada" placeholder="Nome da aba">
+            </div>
+            
+            <div class="config-row">
+                <label>Célula inicial:</label>
+                <input type="text" id="startCell" value="A2" placeholder="Ex: A2">
+            </div>
+            
+            <div class="auth-section" id="authSection">
+                <p>🔐 Para exportar, você precisa autorizar o acesso à sua conta Google.</p>
+                <button id="authButton" onclick="handleAuthClick()">Autorizar Google Sheets</button>
+                <div id="authStatus" class="auth-status"></div>
+            </div>
         </div>
 
         <div id="filterInfo" class="filter-info" style="display: none;">
@@ -469,10 +595,10 @@
             </div>
         </div>
 
-        <!-- Botão de exportação -->
+        <!-- Botão de exportação para Google Sheets -->
         <div class="export-container" id="exportContainer" style="display: none;">
-            <button class="export-btn" id="exportBtn">
-                ⬇️ Exportar para Excel
+            <button class="export-btn" id="exportToSheetsBtn" disabled>
+                📤 Exportar para Google Sheets
             </button>
         </div>
 
@@ -500,8 +626,22 @@
         Processando...
     </div>
 
+    <!-- Scripts do Google API -->
+    <script src="https://accounts.google.com/gsi/client"></script>
+    <script src="https://apis.google.com/js/api.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
     <script>
+        // Configuração da API do Google
+        const CLIENT_ID = 'YOUR_CLIENT_ID.apps.googleusercontent.com'; // Você precisará criar um no Google Cloud Console
+        const API_KEY = 'YOUR_API_KEY'; // Você precisará criar uma API Key
+        const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
+
+        let tokenClient;
+        let accessToken = null;
+        let gapiInited = false;
+        let gisInited = false;
+
         document.addEventListener('DOMContentLoaded', function() {
             const fileInput = document.getElementById('fileInput');
             const uploadArea = document.getElementById('uploadArea');
@@ -523,8 +663,13 @@
             const virtualScrollContent = document.getElementById('virtualScrollContent');
             const virtualScrollBar = document.getElementById('virtualScrollBar');
             const virtualScrollThumb = document.getElementById('virtualScrollThumb');
+            const googleSheetsConfig = document.getElementById('googleSheetsConfig');
             const exportContainer = document.getElementById('exportContainer');
-            const exportBtn = document.getElementById('exportBtn');
+            const exportToSheetsBtn = document.getElementById('exportToSheetsBtn');
+            const sheetId = document.getElementById('sheetId');
+            const sheetTab = document.getElementById('sheetTab');
+            const startCell = document.getElementById('startCell');
+            const authStatus = document.getElementById('authStatus');
 
             let currentWorkbook = null;
             let currentResizer = null;
@@ -542,33 +687,76 @@
             };
             
             // Configurações de virtual scrolling
-            const ROW_HEIGHT = 20; // Altura de cada linha em pixels
-            const BUFFER_SIZE = 20; // Número de linhas extras para renderizar acima/abaixo
+            const ROW_HEIGHT = 20;
+            const BUFFER_SIZE = 20;
             let visibleStartIndex = 0;
             let visibleEndIndex = 0;
             let scrollTimeout = null;
             let filterTimeout = null;
             
-            // Estatísticas de performance
             let lastFilterTime = 0;
 
-            // Função para mostrar/esconder loading
+            // Funções de autenticação Google
+            window.gapiLoaded = function() {
+                gapi.load('client', initializeGapiClient);
+            }
+
+            async function initializeGapiClient() {
+                await gapi.client.init({
+                    apiKey: API_KEY,
+                    discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
+                });
+                gapiInited = true;
+                maybeEnableButtons();
+            }
+
+            window.gisLoaded = function() {
+                tokenClient = google.accounts.oauth2.initTokenClient({
+                    client_id: CLIENT_ID,
+                    scope: SCOPES,
+                    callback: '', // defined later
+                });
+                gisInited = true;
+                maybeEnableButtons();
+            }
+
+            function maybeEnableButtons() {
+                if (gapiInited && gisInited) {
+                    document.getElementById('authButton').disabled = false;
+                }
+            }
+
+            // Função para lidar com o clique no botão de autenticação
+            window.handleAuthClick = function() {
+                tokenClient.callback = async (resp) => {
+                    if (resp.error !== undefined) {
+                        throw resp;
+                    }
+                    accessToken = resp.access_token;
+                    authStatus.className = 'auth-status success';
+                    authStatus.textContent = '✅ Autorizado com sucesso!';
+                    exportToSheetsBtn.disabled = false;
+                };
+
+                if (accessToken === null) {
+                    tokenClient.requestAccessToken({ prompt: 'consent' });
+                } else {
+                    tokenClient.requestAccessToken({ prompt: '' });
+                }
+            }
+
             function setLoading(show) {
                 loadingIndicator.classList.toggle('active', show);
             }
 
-            // Função para formatar números no padrão brasileiro (12.345,89) - para valores monetários
+            // Funções de formatação (mantidas iguais)
             function formatarNumeroBrasil(valor) {
                 if (valor === null || valor === undefined || valor === '') return '';
-                
                 if (typeof valor === 'string') {
                     valor = valor.replace(/\./g, '').replace(',', '.');
                 }
-                
                 let numero = parseFloat(valor);
-                
                 if (isNaN(numero)) return valor;
-                
                 return numero.toLocaleString('pt-BR', {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
@@ -576,33 +764,23 @@
                 });
             }
 
-            // Função para formatar códigos sem ponto
             function formatarCodigoSemPonto(valor) {
                 if (valor === null || valor === undefined || valor === '') return '';
-                
                 if (typeof valor === 'string') {
                     valor = valor.replace(/\./g, '').replace(',', '');
                 }
-                
                 let numero = parseFloat(valor);
-                
                 if (isNaN(numero)) return valor;
-                
                 return numero.toString();
             }
 
-            // Função para formatar números inteiros com pontos
             function formatarNumeroInteiro(valor) {
                 if (valor === null || valor === undefined || valor === '') return '';
-                
                 if (typeof valor === 'string') {
                     valor = valor.replace(/\./g, '').replace(',', '.');
                 }
-                
                 let numero = parseFloat(valor);
-                
                 if (isNaN(numero)) return valor;
-                
                 return Math.round(numero).toLocaleString('pt-BR', {
                     minimumFractionDigits: 0,
                     maximumFractionDigits: 0,
@@ -610,7 +788,6 @@
                 });
             }
 
-            // Função para converter data do Excel
             function formatarDataExcel(valor) {
                 if (valor === null || valor === undefined || valor === '') return '';
                 
@@ -648,40 +825,122 @@
                 return valor;
             }
 
-            // Função para obter valor sem formatação (para exportação)
-            function obterValorOriginal(valor, tipo) {
-                if (valor === null || valor === undefined || valor === '') return '';
+            // Função para preparar dados para o Google Sheets
+            function prepararDadosParaSheets() {
+                const dados = [];
                 
-                // Se for número, retorna como está
-                if (typeof valor === 'number') return valor;
+                // Adiciona cabeçalho
+                dados.push(cachedData.cabecalho);
                 
-                // Se for string, tenta converter baseado no tipo
-                if (typeof valor === 'string') {
-                    // Remove formatação brasileira (pontos de milhar e vírgula decimal)
-                    if (tipo === 'monetario' || tipo === 'inteiro' || tipo === 'codigo_sem_ponto') {
-                        const valorLimpo = valor.replace(/\./g, '').replace(',', '.');
-                        const num = parseFloat(valorLimpo);
-                        if (!isNaN(num)) return num;
-                    }
-                    
-                    // Tenta converter data
-                    if (tipo === 'data') {
-                        // Tenta converter formato dd/mm/aaaa para data do Excel
-                        const partes = valor.split('/');
-                        if (partes.length === 3) {
-                            const data = new Date(partes[2], partes[1] - 1, partes[0]);
-                            if (!isNaN(data.getTime())) {
-                                // Converte para data do Excel (dias desde 01/01/1900)
-                                return (data.getTime() / (1000 * 60 * 60 * 24)) + 25569;
+                // Adiciona linhas filtradas com valores originais
+                cachedData.linhasFiltradas.forEach(linha => {
+                    const linhaDados = linha.map((celula, index) => {
+                        const tipo = cachedData.tiposColuna[index];
+                        
+                        if (celula === null || celula === undefined || celula === '') {
+                            return '';
+                        }
+                        
+                        // Para datas no formato brasileiro, converter para formato ISO para o Sheets
+                        if (tipo === 'data' && typeof celula === 'string' && celula.includes('/')) {
+                            const partes = celula.split('/');
+                            if (partes.length === 3) {
+                                return `${partes[2]}-${partes[1]}-${partes[0]}`; // yyyy-mm-dd
                             }
                         }
-                    }
-                }
+                        
+                        // Para números, remover formatação brasileira
+                        if (tipo === 'monetario' || tipo === 'inteiro' || tipo === 'codigo_sem_ponto') {
+                            if (typeof celula === 'string') {
+                                const valorLimpo = celula.replace(/\./g, '').replace(',', '.');
+                                const num = parseFloat(valorLimpo);
+                                if (!isNaN(num)) return num;
+                            }
+                        }
+                        
+                        return celula;
+                    });
+                    dados.push(linhaDados);
+                });
                 
-                return valor;
+                return dados;
             }
 
-            // Determina o tipo de coluna (cacheado)
+            // Função para exportar para Google Sheets
+            async function exportarParaGoogleSheets() {
+                if (!accessToken) {
+                    mostrarStatus('Por favor, autorize o acesso ao Google Sheets primeiro', 'error');
+                    return;
+                }
+
+                const planilhaId = sheetId.value.trim();
+                const abaDestino = sheetTab.value.trim();
+                const celulaInicio = startCell.value.trim();
+
+                if (!planilhaId || !abaDestino || !celulaInicio) {
+                    mostrarStatus('Preencha todos os campos do Google Sheets', 'error');
+                    return;
+                }
+
+                setLoading(true);
+
+                try {
+                    const dados = prepararDadosParaSheets();
+                    
+                    // Converte célula inicial para índice de linha/coluna
+                    const match = celulaInicio.match(/^([A-Z]+)(\d+)$/);
+                    if (!match) {
+                        throw new Error('Célula inicial inválida');
+                    }
+                    
+                    const colLetras = match[1];
+                    const linhaInicio = parseInt(match[2]) - 1; // Sheets API usa 0-based
+                    
+                    // Converte letras para número de coluna
+                    let colInicio = 0;
+                    for (let i = 0; i < colLetras.length; i++) {
+                        colInicio = colInicio * 26 + (colLetras.charCodeAt(i) - 'A'.charCodeAt(0) + 1);
+                    }
+                    colInicio--; // 0-based
+
+                    // Prepara o range
+                    const numLinhas = dados.length;
+                    const numColunas = dados[0].length;
+                    const range = `${abaDestino}!${celulaInicio}:${String.fromCharCode(65 + colInicio + numColunas - 1)}${linhaInicio + numLinhas}`;
+
+                    // Limpa o range antes de escrever
+                    await gapi.client.sheets.spreadsheets.values.clear({
+                        spreadsheetId: planilhaId,
+                        range: range
+                    });
+
+                    // Escreve os dados
+                    const response = await gapi.client.sheets.spreadsheets.values.update({
+                        spreadsheetId: planilhaId,
+                        range: range,
+                        valueInputOption: 'USER_ENTERED',
+                        resource: {
+                            values: dados
+                        }
+                    });
+
+                    if (response.status === 200) {
+                        mostrarStatus(`✅ Dados exportados com sucesso! ${dados.length - 1} linhas para ${abaDestino}!${celulaInicio}`, 'success');
+                        
+                        // Abre a planilha em uma nova aba
+                        window.open(`https://docs.google.com/spreadsheets/d/${planilhaId}/edit`, '_blank');
+                    } else {
+                        throw new Error('Erro ao exportar dados');
+                    }
+
+                } catch (error) {
+                    console.error('Erro ao exportar:', error);
+                    mostrarStatus('Erro ao exportar para Google Sheets: ' + error.message, 'error');
+                } finally {
+                    setLoading(false);
+                }
+            }
+
             function determinarTipoColuna(nomeColuna) {
                 if (!nomeColuna) return 'texto';
                 
@@ -736,7 +995,6 @@
                 return 'texto';
             }
 
-            // Formata uma célula baseada no tipo da coluna
             function formatarCelula(valor, tipo) {
                 if (tipo === 'monetario') {
                     return formatarNumeroBrasil(valor);
@@ -750,87 +1008,19 @@
                 return valor;
             }
 
-            // Função para exportar para Excel
-            function exportarParaExcel() {
-                if (!cachedData.linhasFiltradas || cachedData.linhasFiltradas.length === 0) {
-                    mostrarStatus('Não há dados para exportar', 'error');
-                    return;
-                }
-
-                setLoading(true);
-                
-                try {
-                    // Criar novo workbook
-                    const workbook = XLSX.utils.book_new();
-                    
-                    // Preparar dados para exportação
-                    const dadosExportacao = [];
-                    
-                    // Adicionar cabeçalho
-                    dadosExportacao.push(cachedData.cabecalho);
-                    
-                    // Adicionar linhas filtradas com valores originais
-                    cachedData.linhasFiltradas.forEach(linha => {
-                        const linhaExport = linha.map((celula, index) => {
-                            return obterValorOriginal(celula, cachedData.tiposColuna[index]);
-                        });
-                        dadosExportacao.push(linhaExport);
-                    });
-                    
-                    // Criar worksheet a partir dos dados
-                    const worksheet = XLSX.utils.aoa_to_sheet(dadosExportacao);
-                    
-                    // Ajustar largura das colunas automaticamente
-                    const colWidths = cachedData.cabecalho.map((_, idx) => {
-                        let maxLength = cachedData.cabecalho[idx].length;
-                        cachedData.linhasFiltradas.forEach(linha => {
-                            const valor = linha[idx] ? linha[idx].toString().length : 0;
-                            maxLength = Math.max(maxLength, valor);
-                        });
-                        return { wch: Math.min(maxLength + 2, 50) };
-                    });
-                    worksheet['!cols'] = colWidths;
-                    
-                    // Adicionar worksheet ao workbook
-                    const nomeAba = cachedData.nomeAba ? cachedData.nomeAba : 'Dados';
-                    XLSX.utils.book_append_sheet(workbook, worksheet, nomeAba);
-                    
-                    // Gerar nome do arquivo com data/hora
-                    const dataHora = new Date().toLocaleString('pt-BR')
-                        .replace(/[/:]/g, '-')
-                        .replace(/ /g, '_');
-                    const nomeArquivo = `exportacao_${dataHora}.xlsx`;
-                    
-                    // Salvar arquivo
-                    XLSX.writeFile(workbook, nomeArquivo);
-                    
-                    mostrarStatus(`Arquivo exportado com sucesso: ${cachedData.linhasFiltradas.length} linhas`, 'success');
-                } catch (error) {
-                    console.error('Erro ao exportar:', error);
-                    mostrarStatus('Erro ao exportar para Excel', 'error');
-                } finally {
-                    setLoading(false);
-                }
-            }
-
-            // Aplica filtros de forma otimizada com Web Worker simulado
             function aplicarFiltrosDebounced() {
                 const filterInputs = document.querySelectorAll('.filter-input');
                 const filtros = Array.from(filterInputs).map(input => input.value.toLowerCase().trim());
                 
-                // Mostra indicador de loading nos filtros
                 filterInputs.forEach(input => input.classList.add('loading'));
                 
-                // Limpa timeout anterior
                 if (filterTimeout) {
                     clearTimeout(filterTimeout);
                 }
                 
-                // Debounce de 300ms
                 filterTimeout = setTimeout(() => {
                     const startTime = performance.now();
                     
-                    // Filtra em background usando setTimeout para não travar a UI
                     setTimeout(() => {
                         const linhasFiltradas = cachedData.linhas.filter(linha => {
                             for (let i = 0; i < filtros.length; i++) {
@@ -846,66 +1036,53 @@
                         
                         cachedData.linhasFiltradas = linhasFiltradas;
                         
-                        // Atualiza contadores
                         visibleRowsCount.textContent = linhasFiltradas.length;
                         filterInfo.style.display = linhasFiltradas.length < cachedData.linhas.length ? 'flex' : 'none';
                         
-                        // Calcula tempo de filtro
                         const endTime = performance.now();
                         lastFilterTime = endTime - startTime;
                         filterTime.textContent = `(filtro em ${lastFilterTime.toFixed(0)}ms)`;
                         
-                        // Remove loading dos filtros
                         filterInputs.forEach(input => input.classList.remove('loading'));
                         
-                        // Atualiza virtual scrolling
                         atualizarVirtualScrolling();
                     }, 0);
                 }, 300);
             }
 
-            // Inicializa virtual scrolling
             function initVirtualScrolling() {
                 const container = document.querySelector('.table-container');
                 const totalLinhas = cachedData.linhasFiltradas.length;
                 const containerHeight = container.clientHeight;
                 const totalHeight = totalLinhas * ROW_HEIGHT;
                 
-                // Ajusta altura do conteúdo virtual
                 virtualScrollContent.style.height = totalHeight + 'px';
                 virtualScrollContent.style.position = 'relative';
                 
-                // Configura scrollbar personalizada
                 const thumbHeight = Math.max(30, (containerHeight / totalHeight) * containerHeight);
                 virtualScrollThumb.style.height = thumbHeight + 'px';
                 
-                // Atualiza posição inicial
                 atualizarVirtualScrolling();
             }
 
-            // Atualiza as linhas visíveis no virtual scrolling
             function atualizarVirtualScrolling() {
                 const container = document.querySelector('.table-container');
                 const scrollTop = container.scrollTop;
                 const containerHeight = container.clientHeight;
                 const totalLinhas = cachedData.linhasFiltradas.length;
                 
-                // Calcula índices visíveis
                 visibleStartIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - BUFFER_SIZE);
                 visibleEndIndex = Math.min(
                     totalLinhas - 1,
                     Math.ceil((scrollTop + containerHeight) / ROW_HEIGHT) + BUFFER_SIZE
                 );
                 
-                // Atualiza posição do thumb
                 const thumbTop = (scrollTop / (container.scrollHeight - containerHeight)) * (containerHeight - virtualScrollThumb.clientHeight);
                 virtualScrollThumb.style.top = thumbTop + 'px';
                 
-                // Renderiza apenas as linhas visíveis
                 renderizarLinhasVisiveis();
             }
 
-            // Renderiza apenas as linhas visíveis no DOM
             function renderizarLinhasVisiveis() {
                 const fragment = document.createDocumentFragment();
                 
@@ -919,7 +1096,6 @@
                         const td = document.createElement('td');
                         td.textContent = valor;
                         
-                        // Adiciona classe baseada no tipo
                         if (cachedData.tiposColuna[colIndex] === 'monetario') {
                             td.className = 'monetary-value';
                         } else if (cachedData.tiposColuna[colIndex] === 'codigo_sem_ponto') {
@@ -934,18 +1110,15 @@
                     fragment.appendChild(tr);
                 }
                 
-                // Limpa e adiciona novas linhas
                 tableBody.innerHTML = '';
                 tableBody.appendChild(fragment);
                 
-                // Ajusta posicionamento
                 tableBody.style.position = 'absolute';
                 tableBody.style.top = (visibleStartIndex * ROW_HEIGHT) + 'px';
                 tableBody.style.left = '0';
                 tableBody.style.right = '0';
             }
 
-            // Carrega a lista de abas
             function carregarListaAbas(workbook, nomeArquivo) {
                 const abas = workbook.SheetNames;
                 sheetList.innerHTML = '';
@@ -966,13 +1139,13 @@
 
                 sheetSelector.classList.add('active');
                 tableContainer.style.display = 'none';
+                googleSheetsConfig.style.display = 'none';
                 exportContainer.style.display = 'none';
                 filterInfo.style.display = 'none';
                 
                 mostrarStatus('Arquivo carregado. Selecione uma aba para visualizar.', 'info');
             }
 
-            // Carrega os dados da aba selecionada
             function carregarAbaSelecionada() {
                 const abaSelecionada = sheetList.value;
                 
@@ -997,15 +1170,13 @@
                         return;
                     }
 
-                    // Encontra cabeçalho
-                    const linhaCabecalho = 0; // Simplificado para performance
+                    const linhaCabecalho = 0;
                     const cabecalho = dados[linhaCabecalho].map(col => col ? col.toString().trim() : '');
                     
                     const linhas = dados.slice(linhaCabecalho + 1).filter(linha => 
                         linha.some(celula => celula !== '' && celula !== null && celula !== undefined)
                     );
 
-                    // Cache dos dados
                     cachedData.cabecalho = cabecalho;
                     cachedData.linhas = linhas;
                     cachedData.linhasFiltradas = linhas;
@@ -1022,7 +1193,6 @@
                     totalRowsCount.textContent = linhas.length;
                     visibleRowsCount.textContent = linhas.length;
 
-                    // Constrói cabeçalho da tabela
                     let headerHtml = '<tr class="header-row">';
                     cabecalho.forEach((coluna, index) => {
                         const nomeColuna = coluna && coluna !== '' ? coluna : `Coluna ${index + 1}`;
@@ -1038,13 +1208,12 @@
 
                     tableHeader.innerHTML = headerHtml;
 
-                    // Adiciona eventos de filtro com debounce
                     document.querySelectorAll('.filter-input').forEach(input => {
                         input.addEventListener('keyup', aplicarFiltrosDebounced);
                     });
 
-                    // Inicializa virtual scrolling
                     tableContainer.style.display = 'block';
+                    googleSheetsConfig.style.display = 'block';
                     exportContainer.style.display = 'flex';
                     
                     setTimeout(() => {
@@ -1100,7 +1269,6 @@
             }
 
             function autoAjustarColuna(columnIndex) {
-                // Versão simplificada para performance
                 const th = document.querySelectorAll('.header-row th')[columnIndex];
                 if (th) {
                     th.style.width = '200px';
@@ -1236,8 +1404,8 @@
             
             clearFilters.addEventListener('click', limparFiltros);
 
-            // Evento de exportação
-            exportBtn.addEventListener('click', exportarParaExcel);
+            // Evento de exportação para Google Sheets
+            exportToSheetsBtn.addEventListener('click', exportarParaGoogleSheets);
 
             // Virtual scrolling listeners
             document.querySelector('.table-container').addEventListener('scroll', function(e) {
@@ -1249,7 +1417,6 @@
                 });
             });
 
-            // Scrollbar personalizada
             virtualScrollThumb.addEventListener('mousedown', function(e) {
                 e.preventDefault();
                 const startY = e.clientY;
@@ -1271,6 +1438,13 @@
                 document.addEventListener('mouseup', onMouseUp);
             });
         });
+    </script>
+    
+    <!-- Inicialização da API do Google -->
+    <script>
+        // Carregar APIs do Google
+        gapiLoaded();
+        gisLoaded();
     </script>
 </body>
 </html>
