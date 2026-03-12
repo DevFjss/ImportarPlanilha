@@ -216,7 +216,7 @@
             min-width: 60px;
         }
 
-        td.numeric-value {
+        td.monetary-value {
             text-align: right;
             font-family: 'Courier New', monospace;
             background-color: #f9f9f9;
@@ -232,6 +232,13 @@
             text-align: right;
             font-family: 'Courier New', monospace;
             background-color: #fff3e0;
+        }
+
+        td.code-value {
+            text-align: right;
+            font-family: 'Courier New', monospace;
+            background-color: #e8f4fd;
+            color: #004080;
         }
 
         .file-details {
@@ -420,7 +427,7 @@
                 });
             }
 
-            // Função para formatar números inteiros (sem decimais)
+            // Função para formatar números inteiros (sem decimais) - para códigos e IDs
             function formatarNumeroInteiro(valor) {
                 if (valor === null || valor === undefined || valor === '') return '';
                 
@@ -435,6 +442,12 @@
                 
                 // Se não for número, retorna o valor original
                 if (isNaN(numero)) return valor;
+                
+                // Verifica se é um número muito grande (como cartão de crédito)
+                // Se for maior que 10 dígitos, trata como string sem formatação
+                if (numero > 9999999999) {
+                    return valor.toString().replace(/\D/g, ''); // Remove não-dígitos
+                }
                 
                 // Arredonda para inteiro e formata sem decimais
                 return Math.round(numero).toLocaleString('pt-BR', {
@@ -512,6 +525,17 @@
                     return 'data';
                 }
                 
+                // Colunas de código/ID (devem ser inteiros sem decimais)
+                const colunasCodigo = [
+                    'cod.', 'cod_', 'cód.', 'cód_', 'id', 'sec', 'custo', 'inep', 
+                    'cartao', 'cartão', 'remessa', 'número', 'numero', 'matricula',
+                    'cod', 'cód'
+                ];
+                
+                if (colunasCodigo.some(col => nomeLower.includes(col))) {
+                    return 'codigo';
+                }
+                
                 // Coluna Remessa - deve ser inteiro
                 if (nomeLower === 'remessa' || nomeLower.includes('remessa')) {
                     return 'inteiro';
@@ -521,7 +545,7 @@
                 const colunasMonetarias = [
                     'valor', 'preço', 'preco', 'total', 'saldo', 'custo', 'orçamento', 'orcamento',
                     'limite', 'disponivel', 'implantado', 'despesas', 'capital', 'custeio',
-                    'original', 'banco', 'maximo configu'
+                    'original', 'banco', 'maximo configu', 'máximo configu'
                 ];
                 
                 if (colunasMonetarias.some(col => nomeLower.includes(col))) {
@@ -550,6 +574,8 @@
                                celulaLower.includes('remessa') ||
                                celulaLower.includes('cartao') ||
                                celulaLower.includes('id') ||
+                               celulaLower.includes('cod.') ||
+                               celulaLower.includes('cód.') ||
                                celulaLower.includes('data');
                     });
                     
@@ -652,7 +678,10 @@
                             // Aplica formatação baseada no tipo da coluna
                             if (tipoColuna === 'monetario') {
                                 valor = formatarNumeroBrasil(valor);
-                                classeExtra = ' numeric-value';
+                                classeExtra = ' monetary-value';
+                            } else if (tipoColuna === 'codigo') {
+                                valor = formatarNumeroInteiro(valor);
+                                classeExtra = ' code-value';
                             } else if (tipoColuna === 'inteiro') {
                                 valor = formatarNumeroInteiro(valor);
                                 classeExtra = ' integer-value';
@@ -660,9 +689,9 @@
                                 valor = formatarDataExcel(valor);
                                 classeExtra = ' date-value';
                             } else if (ehValorNumerico(valor) && tipoColuna === 'texto') {
-                                // Se for numérico mas não identificado, formata como número padrão
-                                valor = formatarNumeroBrasil(valor);
-                                classeExtra = ' numeric-value';
+                                // Se for numérico mas não identificado, formata como inteiro (padrão)
+                                valor = formatarNumeroInteiro(valor);
+                                classeExtra = ' integer-value';
                             }
                             
                             bodyHtml += `<td class="${classeExtra}">${valor}</td>`;
