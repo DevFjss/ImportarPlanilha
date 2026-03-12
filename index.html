@@ -122,6 +122,29 @@
             background-color: #45a049;
         }
 
+        .export-container {
+            margin: 15px 0;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .export-btn {
+            padding: 8px 20px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        .export-btn:hover {
+            background-color: #218838;
+        }
+
         .loading-indicator {
             display: none;
             position: fixed;
@@ -446,6 +469,13 @@
             </div>
         </div>
 
+        <!-- Botão de exportação -->
+        <div class="export-container" id="exportContainer" style="display: none;">
+            <button class="export-btn" id="exportBtn">
+                ⬇️ Exportar para Excel
+            </button>
+        </div>
+
         <div class="table-container" id="tableContainer" style="display: none;">
             <div class="resize-guide" id="resizeGuide"></div>
             <div class="virtual-scroll-container">
@@ -493,6 +523,8 @@
             const virtualScrollContent = document.getElementById('virtualScrollContent');
             const virtualScrollBar = document.getElementById('virtualScrollBar');
             const virtualScrollThumb = document.getElementById('virtualScrollThumb');
+            const exportContainer = document.getElementById('exportContainer');
+            const exportBtn = document.getElementById('exportBtn');
 
             let currentWorkbook = null;
             let currentResizer = null;
@@ -505,7 +537,8 @@
                 cabecalho: [],
                 linhas: [],
                 linhasFiltradas: [],
-                tiposColuna: []
+                tiposColuna: [],
+                nomeAba: ''
             };
             
             // Configurações de virtual scrolling
@@ -615,6 +648,39 @@
                 return valor;
             }
 
+            // Função para obter valor sem formatação (para exportação)
+            function obterValorOriginal(valor, tipo) {
+                if (valor === null || valor === undefined || valor === '') return '';
+                
+                // Se for número, retorna como está
+                if (typeof valor === 'number') return valor;
+                
+                // Se for string, tenta converter baseado no tipo
+                if (typeof valor === 'string') {
+                    // Remove formatação brasileira (pontos de milhar e vírgula decimal)
+                    if (tipo === 'monetario' || tipo === 'inteiro' || tipo === 'codigo_sem_ponto') {
+                        const valorLimpo = valor.replace(/\./g, '').replace(',', '.');
+                        const num = parseFloat(valorLimpo);
+                        if (!isNaN(num)) return num;
+                    }
+                    
+                    // Tenta converter data
+                    if (tipo === 'data') {
+                        // Tenta converter formato dd/mm/aaaa para data do Excel
+                        const partes = valor.split('/');
+                        if (partes.length === 3) {
+                            const data = new Date(partes[2], partes[1] - 1, partes[0]);
+                            if (!isNaN(data.getTime())) {
+                                // Converte para data do Excel (dias desde 01/01/1900)
+                                return (data.getTime() / (1000 * 60 * 60 * 24)) + 25569;
+                            }
+                        }
+                    }
+                }
+                
+                return valor;
+            }
+
             // Determina o tipo de coluna (cacheado)
             function determinarTipoColuna(nomeColuna) {
                 if (!nomeColuna) return 'texto';
@@ -682,6 +748,69 @@
                     return formatarDataExcel(valor);
                 }
                 return valor;
+            }
+
+            // Função para exportar para Excel
+            function exportarParaExcel() {
+                if (!cachedData.linhasFiltradas || cachedData.linhasFiltradas.length === 0) {
+                    mostrarStatus('Não há dados para exportar', 'error');
+                    return;
+                }
+
+                setLoading(true);
+                
+                try {
+                    // Criar novo workbook
+                    const workbook = XLSX.utils.book_new();
+                    
+                    // Preparar dados para exportação
+                    const dadosExportacao = [];
+                    
+                    // Adicionar cabeçalho
+                    dadosExportacao.push(cachedData.cabecalho);
+                    
+                    // Adicionar linhas filtradas com valores originais
+                    cachedData.linhasFiltradas.forEach(linha => {
+                        const linhaExport = linha.map((celula, index) => {
+                            return obterValorOriginal(celula, cachedData.tiposColuna[index]);
+                        });
+                        dadosExportacao.push(linhaExport);
+                    });
+                    
+                    // Criar worksheet a partir dos dados
+                    const worksheet = XLSX.utils.aoa_to_sheet(dadosExportacao);
+                    
+                    // Ajustar largura das colunas automaticamente
+                    const colWidths = cachedData.cabecalho.map((_, idx) => {
+                        let maxLength = cachedData.cabecalho[idx].length;
+                        cachedData.linhasFiltradas.forEach(linha => {
+                            const valor = linha[idx] ? linha[idx].toString().length : 0;
+                            maxLength = Math.max(maxLength, valor);
+                        });
+                        return { wch: Math.min(maxLength + 2, 50) };
+                    });
+                    worksheet['!cols'] = colWidths;
+                    
+                    // Adicionar worksheet ao workbook
+                    const nomeAba = cachedData.nomeAba ? cachedData.nomeAba : 'Dados';
+                    XLSX.utils.book_append_sheet(workbook, worksheet, nomeAba);
+                    
+                    // Gerar nome do arquivo com data/hora
+                    const dataHora = new Date().toLocaleString('pt-BR')
+                        .replace(/[/:]/g, '-')
+                        .replace(/ /g, '_');
+                    const nomeArquivo = `exportacao_${dataHora}.xlsx`;
+                    
+                    // Salvar arquivo
+                    XLSX.writeFile(workbook, nomeArquivo);
+                    
+                    mostrarStatus(`Arquivo exportado com sucesso: ${cachedData.linhasFiltradas.length} linhas`, 'success');
+                } catch (error) {
+                    console.error('Erro ao exportar:', error);
+                    mostrarStatus('Erro ao exportar para Excel', 'error');
+                } finally {
+                    setLoading(false);
+                }
             }
 
             // Aplica filtros de forma otimizada com Web Worker simulado
@@ -837,6 +966,7 @@
 
                 sheetSelector.classList.add('active');
                 tableContainer.style.display = 'none';
+                exportContainer.style.display = 'none';
                 filterInfo.style.display = 'none';
                 
                 mostrarStatus('Arquivo carregado. Selecione uma aba para visualizar.', 'info');
@@ -880,6 +1010,7 @@
                     cachedData.linhas = linhas;
                     cachedData.linhasFiltradas = linhas;
                     cachedData.tiposColuna = cabecalho.map(determinarTipoColuna);
+                    cachedData.nomeAba = abaSelecionada;
 
                     fileDetails.innerHTML = `
                         <strong>Arquivo:</strong> ${fileDetails.innerHTML.match(/Arquivo:<\/strong>([^<]+)/)?.[1] || 'Carregado'}<br>
@@ -914,6 +1045,8 @@
 
                     // Inicializa virtual scrolling
                     tableContainer.style.display = 'block';
+                    exportContainer.style.display = 'flex';
+                    
                     setTimeout(() => {
                         initVirtualScrolling();
                         initResizeHandlers();
@@ -1102,6 +1235,9 @@
             loadSheetBtn.addEventListener('click', carregarAbaSelecionada);
             
             clearFilters.addEventListener('click', limparFiltros);
+
+            // Evento de exportação
+            exportBtn.addEventListener('click', exportarParaExcel);
 
             // Virtual scrolling listeners
             document.querySelector('.table-container').addEventListener('scroll', function(e) {
