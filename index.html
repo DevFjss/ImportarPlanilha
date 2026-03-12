@@ -75,6 +75,53 @@
             font-size: 14px;
         }
 
+        .sheet-selector {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .sheet-selector.active {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .sheet-selector label {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .sheet-selector select {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            min-width: 300px;
+            font-size: 14px;
+            background-color: white;
+        }
+
+        .sheet-selector select:focus {
+            outline: 2px solid #2196F3;
+            border-color: transparent;
+        }
+
+        .load-sheet-btn {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .load-sheet-btn:hover {
+            background-color: #45a049;
+        }
+
         .table-container {
             width: 100%;
             border: 1px solid #ddd;
@@ -241,22 +288,6 @@
             display: block;
         }
 
-        .resizer::after {
-            content: "↵";
-            position: absolute;
-            top: 50%;
-            right: 8px;
-            transform: translateY(-50%);
-            font-size: 12px;
-            color: rgba(255, 255, 255, 0.3);
-            pointer-events: none;
-            display: none;
-        }
-
-        .header-row th:hover .resizer::after {
-            display: block;
-        }
-
         .filter-info {
             margin-top: 10px;
             padding: 5px 10px;
@@ -295,10 +326,18 @@
             <label for="fileInput" class="upload-label">
                 Escolher arquivo Excel
             </label>
-            <input type="file" id="fileInput" accept=".xlsx,.xlsm">
-            <p class="file-info">Arquivos suportados: .xlsx, .xlsm</p>
+            <input type="file" id="fileInput" accept=".xlsx,.xlsm,.xls">
+            <p class="file-info">Arquivos suportados: .xlsx, .xlsm, .xls</p>
             <div id="fileDetails" class="file-details" style="display: none;"></div>
             <div id="statusMessage" class="status-message" style="display: none;"></div>
+        </div>
+
+        <div class="sheet-selector" id="sheetSelector">
+            <label for="sheetList">Selecione a aba:</label>
+            <select id="sheetList">
+                <option value="">Carregando abas...</option>
+            </select>
+            <button class="load-sheet-btn" id="loadSheetBtn">Carregar aba selecionada</button>
         </div>
 
         <div id="filterInfo" class="filter-info" style="display: none;">
@@ -334,7 +373,11 @@
             const visibleRowsCount = document.getElementById('visibleRowsCount');
             const totalRowsCount = document.getElementById('totalRowsCount');
             const clearFilters = document.getElementById('clearFilters');
+            const sheetSelector = document.getElementById('sheetSelector');
+            const sheetList = document.getElementById('sheetList');
+            const loadSheetBtn = document.getElementById('loadSheetBtn');
 
+            let currentWorkbook = null;
             let currentResizer = null;
             let startX = 0;
             let startWidth = 0;
@@ -396,6 +439,128 @@
                 return 0;
             }
 
+            function carregarListaAbas(workbook, nomeArquivo) {
+                const abas = workbook.SheetNames;
+                sheetList.innerHTML = '';
+                
+                abas.forEach(aba => {
+                    const option = document.createElement('option');
+                    option.value = aba;
+                    option.textContent = aba;
+                    sheetList.appendChild(option);
+                });
+
+                fileDetails.style.display = 'block';
+                fileDetails.innerHTML = `
+                    <strong>Arquivo:</strong> ${nomeArquivo}<br>
+                    <strong>Total de abas:</strong> ${abas.length}<br>
+                    <strong>Selecione uma aba para visualizar os dados</strong>
+                `;
+
+                sheetSelector.classList.add('active');
+                tableContainer.style.display = 'none';
+                filterInfo.style.display = 'none';
+                
+                mostrarStatus('Arquivo carregado. Selecione uma aba para visualizar.', 'info');
+            }
+
+            function carregarAbaSelecionada() {
+                const abaSelecionada = sheetList.value;
+                
+                if (!abaSelecionada || !currentWorkbook) {
+                    mostrarStatus('Selecione uma aba válida', 'error');
+                    return;
+                }
+
+                try {
+                    const worksheet = currentWorkbook.Sheets[abaSelecionada];
+                    
+                    const dados = XLSX.utils.sheet_to_json(worksheet, { 
+                        header: 1,
+                        defval: '' 
+                    });
+
+                    if (dados.length === 0) {
+                        mostrarStatus('Aba vazia ou sem dados', 'error');
+                        return;
+                    }
+
+                    const linhaCabecalho = encontrarCabecalhoReal(dados);
+                    const cabecalho = dados[linhaCabecalho];
+                    const linhas = dados.slice(linhaCabecalho + 1).filter(linha => 
+                        linha.some(celula => celula !== '' && celula !== null && celula !== undefined)
+                    );
+
+                    fileDetails.innerHTML = `
+                        <strong>Arquivo:</strong> ${fileDetails.innerHTML.match(/Arquivo:<\/strong>([^<]+)/)?.[1] || 'Carregado'}<br>
+                        <strong>Aba atual:</strong> ${abaSelecionada}<br>
+                        <strong>Linhas de dados:</strong> ${linhas.length}<br>
+                        <strong>Colunas:</strong> ${cabecalho.length}
+                    `;
+
+                    totalRowsCount.textContent = linhas.length;
+
+                    let headerHtml = '<tr class="header-row">';
+                    cabecalho.forEach((coluna, index) => {
+                        if (coluna && coluna.toString().trim() !== '' && !coluna.toString().toLowerCase().includes('sem nome')) {
+                            headerHtml += `<th style="width: 150px;">${coluna}</th>`;
+                        } else {
+                            headerHtml += `<th style="width: 150px; display: none;">${coluna || 'Coluna ' + (index + 1)}</th>`;
+                        }
+                    });
+                    headerHtml += '</tr>';
+
+                    headerHtml += '<tr class="filter-row">';
+                    cabecalho.forEach((coluna, index) => {
+                        const colunaVisivel = coluna && coluna.toString().trim() !== '' && !coluna.toString().toLowerCase().includes('sem nome');
+                        const estilo = colunaVisivel ? '' : ' style="display: none;"';
+                        headerHtml += `<th${estilo}><input type="text" class="filter-input" placeholder="Filtrar..." data-column="${index}"></th>`;
+                    });
+                    headerHtml += '</tr>';
+
+                    tableHeader.innerHTML = headerHtml;
+
+                    let bodyHtml = '';
+                    linhas.forEach(linha => {
+                        bodyHtml += '<tr>';
+                        linha.forEach((celula, index) => {
+                            const nomeColuna = cabecalho[index] || '';
+                            let valor = celula !== undefined ? celula : '';
+                            
+                            const colunaVisivel = nomeColuna && nomeColuna.toString().trim() !== '' && 
+                                                  !nomeColuna.toString().toLowerCase().includes('sem nome');
+                            
+                            if (deveFormatarNumero(nomeColuna) && !isNaN(parseFloat(valor.toString().replace(/\./g, '').replace(',', '.')))) {
+                                valor = formatarNumeroBrasil(valor);
+                            }
+                            
+                            const classeExtra = deveFormatarNumero(nomeColuna) ? ' class="numeric-value"' : '';
+                            const estiloOculto = !colunaVisivel ? ' style="display: none;"' : '';
+                            
+                            bodyHtml += `<td${classeExtra}${estiloOculto}>${valor}</td>`;
+                        });
+                        bodyHtml += '</tr>';
+                    });
+                    tableBody.innerHTML = bodyHtml;
+
+                    document.querySelectorAll('.filter-input').forEach(input => {
+                        input.addEventListener('keyup', aplicarFiltros);
+                    });
+
+                    tableContainer.style.display = 'block';
+                    
+                    setTimeout(() => {
+                        initResizeHandlers();
+                    }, 100);
+                    
+                    mostrarStatus(`Aba "${abaSelecionada}" carregada com sucesso!`, 'success');
+
+                } catch (error) {
+                    console.error('Erro ao processar aba:', error);
+                    mostrarStatus('Erro ao processar a aba selecionada.', 'error');
+                }
+            }
+
             function aplicarFiltros() {
                 const filterInputs = document.querySelectorAll('.filter-input');
                 const linhas = document.querySelectorAll('#tableBody tr');
@@ -441,6 +606,32 @@
                 });
 
                 filterInfo.style.display = 'none';
+            }
+
+            function initResizeHandlers() {
+                const thElements = document.querySelectorAll('.header-row th');
+                
+                thElements.forEach((th, index) => {
+                    const existingResizer = th.querySelector('.resizer');
+                    if (existingResizer) {
+                        existingResizer.remove();
+                    }
+
+                    const resizer = document.createElement('div');
+                    resizer.className = 'resizer';
+                    resizer.setAttribute('data-column', index);
+                    
+                    resizer.addEventListener('dblclick', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const columnIndex = this.getAttribute('data-column');
+                        autoAjustarColuna(parseInt(columnIndex));
+                    });
+
+                    resizer.addEventListener('mousedown', startResize);
+                    
+                    th.appendChild(resizer);
+                });
             }
 
             function autoAjustarColuna(columnIndex) {
@@ -493,32 +684,6 @@
                 }
 
                 mostrarStatus(`Coluna ajustada para ${Math.round(newWidth)}px`, 'info');
-            }
-
-            function initResizeHandlers() {
-                const thElements = document.querySelectorAll('.header-row th');
-                
-                thElements.forEach((th, index) => {
-                    const existingResizer = th.querySelector('.resizer');
-                    if (existingResizer) {
-                        existingResizer.remove();
-                    }
-
-                    const resizer = document.createElement('div');
-                    resizer.className = 'resizer';
-                    resizer.setAttribute('data-column', index);
-                    
-                    resizer.addEventListener('dblclick', function(e) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        const columnIndex = this.getAttribute('data-column');
-                        autoAjustarColuna(parseInt(columnIndex));
-                    });
-
-                    resizer.addEventListener('mousedown', startResize);
-                    
-                    th.appendChild(resizer);
-                });
             }
 
             function startResize(e) {
@@ -589,93 +754,9 @@
                 reader.onload = function(e) {
                     try {
                         const data = new Uint8Array(e.target.result);
-                        const workbook = XLSX.read(data, { type: 'array' });
+                        currentWorkbook = XLSX.read(data, { type: 'array' });
                         
-                        const primeiraPlanilha = workbook.SheetNames[0];
-                        const worksheet = workbook.Sheets[primeiraPlanilha];
-                        
-                        const dados = XLSX.utils.sheet_to_json(worksheet, { 
-                            header: 1,
-                            defval: '' 
-                        });
-
-                        if (dados.length === 0) {
-                            mostrarStatus('Arquivo vazio ou sem dados', 'error');
-                            return;
-                        }
-
-                        const linhaCabecalho = encontrarCabecalhoReal(dados);
-                        const cabecalho = dados[linhaCabecalho];
-                        const linhas = dados.slice(linhaCabecalho + 1).filter(linha => 
-                            linha.some(celula => celula !== '' && celula !== null && celula !== undefined)
-                        );
-
-                        fileDetails.style.display = 'block';
-                        fileDetails.innerHTML = `
-                            <strong>Arquivo:</strong> ${arquivo.name}<br>
-                            <strong>Planilha:</strong> ${primeiraPlanilha}<br>
-                            <strong>Linhas de dados:</strong> ${linhas.length}<br>
-                            <strong>Colunas:</strong> ${cabecalho.length}
-                        `;
-
-                        totalRowsCount.textContent = linhas.length;
-
-                        let headerHtml = '<tr class="header-row">';
-                        cabecalho.forEach((coluna, index) => {
-                            if (coluna && coluna.toString().trim() !== '' && !coluna.toString().toLowerCase().includes('sem nome')) {
-                                headerHtml += `<th style="width: 150px;">${coluna}</th>`;
-                            } else {
-                                headerHtml += `<th style="width: 150px; display: none;">${coluna || 'Coluna ' + (index + 1)}</th>`;
-                            }
-                        });
-                        headerHtml += '</tr>';
-
-                        headerHtml += '<tr class="filter-row">';
-                        cabecalho.forEach((coluna, index) => {
-                            const colunaVisivel = coluna && coluna.toString().trim() !== '' && !coluna.toString().toLowerCase().includes('sem nome');
-                            const estilo = colunaVisivel ? '' : ' style="display: none;"';
-                            headerHtml += `<th${estilo}><input type="text" class="filter-input" placeholder="Filtrar..." data-column="${index}"></th>`;
-                        });
-                        headerHtml += '</tr>';
-
-                        tableHeader.innerHTML = headerHtml;
-
-                        let bodyHtml = '';
-                        linhas.forEach(linha => {
-                            bodyHtml += '<tr>';
-                            linha.forEach((celula, index) => {
-                                const nomeColuna = cabecalho[index] || '';
-                                let valor = celula !== undefined ? celula : '';
-                                
-                                const colunaVisivel = nomeColuna && nomeColuna.toString().trim() !== '' && 
-                                                      !nomeColuna.toString().toLowerCase().includes('sem nome');
-                                
-                                if (deveFormatarNumero(nomeColuna) && !isNaN(parseFloat(valor.toString().replace(/\./g, '').replace(',', '.')))) {
-                                    valor = formatarNumeroBrasil(valor);
-                                }
-                                
-                                const classeExtra = deveFormatarNumero(nomeColuna) ? ' class="numeric-value"' : '';
-                                const estiloOculto = !colunaVisivel ? ' style="display: none;"' : '';
-                                
-                                bodyHtml += `<td${classeExtra}${estiloOculto}>${valor}</td>`;
-                            });
-                            bodyHtml += '</tr>';
-                        });
-                        tableBody.innerHTML = bodyHtml;
-
-                        document.querySelectorAll('.filter-input').forEach(input => {
-                            input.addEventListener('keyup', aplicarFiltros);
-                        });
-
-                        clearFilters.addEventListener('click', limparFiltros);
-
-                        tableContainer.style.display = 'block';
-                        
-                        setTimeout(() => {
-                            initResizeHandlers();
-                        }, 100);
-                        
-                        mostrarStatus('Arquivo carregado com sucesso!', 'success');
+                        carregarListaAbas(currentWorkbook, arquivo.name);
 
                     } catch (error) {
                         console.error('Erro ao processar arquivo:', error);
@@ -722,13 +803,17 @@
                 this.classList.remove('dragover');
                 
                 const arquivo = e.dataTransfer.files[0];
-                if (arquivo && (arquivo.name.endsWith('.xlsx') || arquivo.name.endsWith('.xlsm'))) {
+                if (arquivo && (arquivo.name.endsWith('.xlsx') || arquivo.name.endsWith('.xlsm') || arquivo.name.endsWith('.xls'))) {
                     fileInput.files = e.dataTransfer.files;
                     processarArquivo(arquivo);
                 } else {
-                    mostrarStatus('Por favor, selecione um arquivo .xlsx ou .xlsm válido', 'error');
+                    mostrarStatus('Por favor, selecione um arquivo .xlsx, .xlsm ou .xls válido', 'error');
                 }
             });
+
+            loadSheetBtn.addEventListener('click', carregarAbaSelecionada);
+            
+            clearFilters.addEventListener('click', limparFiltros);
         });
     </script>
 </body>
