@@ -1,1430 +1,257 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Importador de Planilhas Excel - Google Sheets</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
 
-        body {
-            background-color: #f5f5f5;
-            padding: 20px;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
+<meta charset="UTF-8">
+<title>FAED - Visualizador</title>
+
+<link rel="stylesheet"
+href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+<style>
+
+body{
+margin:0;
+font-family:Arial;
+display:flex;
+height:100vh;
+background:#667eea;
+}
+
+.sidebar{
+width:260px;
+background:#2d2d2d;
+color:white;
+padding:20px;
+}
+
+.menu-item{
+display:block;
+width:100%;
+padding:12px;
+margin:6px 0;
+border:none;
+background:none;
+color:white;
+cursor:pointer;
+text-align:left;
+}
+
+.menu-item:hover{
+background:#444;
+}
+
+.main-content{
+flex:1;
+padding:20px;
+background:#f4f4f4;
+overflow:auto;
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+background:white;
+}
+
+th{
+background:#667eea;
+color:white;
+padding:10px;
+}
+
+td{
+padding:8px;
+border-bottom:1px solid #ccc;
+}
+
+</style>
 
-        .container {
-            width: 100%;
-            max-width: 1400px;
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            padding: 30px;
-        }
-
-        .upload-area {
-            margin-bottom: 30px;
-            padding: 30px;
-            border: 2px dashed #ccc;
-            border-radius: 8px;
-            text-align: center;
-            background-color: #fafafa;
-            transition: all 0.3s ease;
-        }
-
-        .upload-area:hover {
-            border-color: #2196F3;
-            background-color: #f0f8ff;
-        }
-
-        .upload-area.dragover {
-            border-color: #2196F3;
-            background-color: #e3f2fd;
-        }
-
-        .upload-label {
-            display: inline-block;
-            padding: 12px 24px;
-            background-color: #2196F3;
-            color: white;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: 500;
-            transition: background-color 0.3s ease;
-        }
-
-        .upload-label:hover {
-            background-color: #1976D2;
-        }
-
-        input[type="file"] {
-            display: none;
-        }
-
-        .file-info {
-            margin-top: 15px;
-            color: #666;
-            font-size: 14px;
-        }
-
-        .sheet-selector {
-            margin: 20px 0;
-            padding: 15px;
-            background-color: #f8f9fa;
-            border-radius: 4px;
-            display: none;
-        }
-
-        .sheet-selector.active {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .sheet-selector label {
-            font-weight: 600;
-            color: #333;
-        }
-
-        .sheet-selector select {
-            padding: 8px 12px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            min-width: 300px;
-            font-size: 14px;
-            background-color: white;
-        }
-
-        .sheet-selector select:focus {
-            outline: 2px solid #2196F3;
-            border-color: transparent;
-        }
-
-        .load-sheet-btn {
-            padding: 8px 16px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: 500;
-        }
-
-        .load-sheet-btn:hover {
-            background-color: #45a049;
-        }
-
-        .google-sheets-config {
-            margin: 20px 0;
-            padding: 20px;
-            background-color: #f0f7fb;
-            border-radius: 8px;
-            border-left: 4px solid #0F9D58;
-            display: none;
-        }
-
-        .google-sheets-config.active {
-            display: block;
-        }
-
-        .google-sheets-config h3 {
-            color: #0F9D58;
-            margin-bottom: 15px;
-            font-size: 18px;
-        }
-
-        .config-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 15px;
-            flex-wrap: wrap;
-        }
-
-        .config-row label {
-            font-weight: 600;
-            color: #333;
-            min-width: 100px;
-        }
-
-        .config-row input {
-            flex: 1;
-            padding: 8px 12px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            font-size: 14px;
-            min-width: 300px;
-        }
-
-        .config-row input:focus {
-            outline: 2px solid #0F9D58;
-            border-color: transparent;
-        }
-
-        .config-row input:disabled {
-            background-color: #e9ecef;
-            cursor: not-allowed;
-        }
-
-        .config-row button {
-            padding: 8px 20px;
-            background-color: #0F9D58;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: 500;
-        }
-
-        .config-row button:hover {
-            background-color: #0b8043;
-        }
-
-        .config-row button:disabled {
-            background-color: #ccc;
-            cursor: not-allowed;
-        }
-
-        .auth-section {
-            margin-top: 15px;
-            padding: 15px;
-            background-color: #e8f0fe;
-            border-radius: 4px;
-        }
-
-        .auth-section p {
-            margin-bottom: 10px;
-            color: #333;
-        }
-
-        .auth-section button {
-            padding: 8px 16px;
-            background-color: #4285F4;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        .auth-section button:hover {
-            background-color: #3367d6;
-        }
-
-        .auth-status {
-            margin-top: 10px;
-            padding: 10px;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-
-        .auth-status.success {
-            background-color: #d4edda;
-            color: #155724;
-        }
-
-        .auth-status.error {
-            background-color: #f8d7da;
-            color: #721c24;
-        }
-
-        .export-container {
-            margin: 15px 0;
-            display: flex;
-            gap: 10px;
-            justify-content: flex-end;
-        }
-
-        .export-btn {
-            padding: 10px 24px;
-            background-color: #0F9D58;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: 500;
-            font-size: 14px;
-            transition: background-color 0.2s;
-        }
-
-        .export-btn:hover {
-            background-color: #0b8043;
-        }
-
-        .export-btn:disabled {
-            background-color: #ccc;
-            cursor: not-allowed;
-        }
-
-        .loading-indicator {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: rgba(0,0,0,0.8);
-            color: white;
-            padding: 15px 30px;
-            border-radius: 8px;
-            font-size: 16px;
-            z-index: 1000;
-        }
-
-        .loading-indicator.active {
-            display: block;
-        }
-
-        .table-container {
-            width: 100%;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            height: 600px;
-            overflow-y: auto;
-            overflow-x: auto;
-            position: relative;
-            margin-top: 20px;
-        }
-
-        .virtual-scroll-container {
-            position: relative;
-            width: 100%;
-            min-width: 1200px;
-        }
-
-        .virtual-scroll-content {
-            position: relative;
-            width: 100%;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-            font-size: 14px;
-            min-width: 1200px;
-            table-layout: fixed;
-            position: relative;
-        }
-
-        thead {
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            background-color: white;
-        }
-
-        .header-row th {
-            background-color: #003366;
-            color: white;
-            font-weight: 600;
-            padding: 8px 12px;
-            height: 40px;
-            line-height: 24px;
-            white-space: nowrap;
-            border-right: 1px solid #004c99;
-            border-bottom: 2px solid #ffd700;
-            position: relative;
-            user-select: none;
-            box-sizing: border-box;
-        }
-
-        .filter-row th {
-            background-color: #e6e9ef;
-            padding: 5px 12px;
-            height: 40px;
-            border-bottom: 1px solid #999;
-            border-right: 1px solid #ccc;
-            box-sizing: border-box;
-        }
-
-        .header-row th:last-child,
-        .filter-row th:last-child {
-            border-right: none;
-        }
-
-        .filter-input {
-            width: 100%;
-            padding: 4px 8px;
-            border: 1px solid #999;
-            border-radius: 3px;
-            font-size: 12px;
-            background-color: white;
-            color: #333;
-            transition: border-color 0.2s;
-        }
-
-        .filter-input:focus {
-            outline: 2px solid #2196F3;
-            border-color: transparent;
-        }
-
-        .filter-input.loading {
-            background-color: #f0f0f0;
-            border-color: #2196F3;
-        }
-
-        td {
-            height: 20px;
-            line-height: 20px;
-            padding: 0 12px;
-            border: 1px solid #ddd;
-            white-space: nowrap;
-            background-color: white;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            box-sizing: border-box;
-        }
-
-        tr:hover td {
-            background-color: #f5f5f5;
-        }
-
-        td:empty::before {
-            content: "—";
-            color: #999;
-        }
-
-        th:first-child, td:first-child {
-            min-width: 60px;
-        }
-
-        td.monetary-value {
-            text-align: right;
-            font-family: 'Courier New', monospace;
-            background-color: #f9f9f9;
-        }
-
-        td.date-value {
-            text-align: center;
-            font-family: 'Courier New', monospace;
-            background-color: #f0f8ff;
-        }
-
-        td.code-value {
-            text-align: right;
-            font-family: 'Courier New', monospace;
-            background-color: #e8f4fd;
-            color: #004080;
-        }
-
-        .file-details {
-            margin-top: 10px;
-            padding: 10px;
-            background-color: #e8f4fd;
-            border-radius: 4px;
-            font-size: 14px;
-            color: #004080;
-        }
-
-        .status-message {
-            margin-top: 10px;
-            padding: 10px;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-
-        .status-message.success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .status-message.error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        .status-message.info {
-            background-color: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-
-        .resizer {
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 5px;
-            height: 100%;
-            background-color: transparent;
-            cursor: col-resize;
-            user-select: none;
-            z-index: 200;
-        }
-
-        .resizer:hover,
-        .resizer.resizing {
-            background-color: #ffd700;
-            opacity: 0.5;
-        }
-
-        .resize-guide {
-            position: absolute;
-            top: 0;
-            width: 2px;
-            height: 100%;
-            background-color: #2196F3;
-            z-index: 1000;
-            pointer-events: none;
-            display: none;
-        }
-
-        .resize-guide.active {
-            display: block;
-        }
-
-        .filter-info {
-            margin-top: 10px;
-            padding: 5px 10px;
-            background-color: #f0f0f0;
-            border-radius: 3px;
-            font-size: 12px;
-            color: #666;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .filter-info span {
-            font-weight: bold;
-            color: #003366;
-        }
-
-        .clear-filters {
-            padding: 2px 8px;
-            background-color: #dc3545;
-            color: white;
-            border: none;
-            border-radius: 3px;
-            font-size: 12px;
-            cursor: pointer;
-        }
-
-        .clear-filters:hover {
-            background-color: #c82333;
-        }
-
-        .filter-stats {
-            margin-left: auto;
-            font-size: 12px;
-            color: #666;
-        }
-
-        .virtual-scroll-bar {
-            position: absolute;
-            right: 0;
-            top: 0;
-            width: 10px;
-            height: 100%;
-            background-color: transparent;
-            z-index: 150;
-        }
-
-        .virtual-scroll-thumb {
-            position: absolute;
-            width: 8px;
-            background-color: rgba(0,0,0,0.3);
-            border-radius: 4px;
-            right: 1px;
-            cursor: pointer;
-        }
-
-        .virtual-scroll-thumb:hover {
-            background-color: rgba(0,0,0,0.5);
-        }
-    </style>
 </head>
+
 <body>
-    <div class="container">
-        <h1 style="margin-bottom: 20px; color: #333;">Importador de Planilhas Excel - Google Sheets</h1>
-        
-        <div class="upload-area" id="uploadArea">
-            <label for="fileInput" class="upload-label">
-                Escolher arquivo Excel
-            </label>
-            <input type="file" id="fileInput" accept=".xlsx,.xlsm,.xls">
-            <p class="file-info">Arquivos suportados: .xlsx, .xlsm, .xls</p>
-            <div id="fileDetails" class="file-details" style="display: none;"></div>
-            <div id="statusMessage" class="status-message" style="display: none;"></div>
-        </div>
-
-        <div class="sheet-selector" id="sheetSelector">
-            <label for="sheetList">Selecione a aba do Excel:</label>
-            <select id="sheetList">
-                <option value="">Carregando abas...</option>
-            </select>
-            <button class="load-sheet-btn" id="loadSheetBtn">Carregar aba selecionada</button>
-        </div>
-
-        <!-- Configuração do Google Sheets -->
-        <div class="google-sheets-config" id="googleSheetsConfig">
-            <h3>📊 Exportar para Google Sheets</h3>
-            
-            <div class="config-row">
-                <label>ID da Planilha:</label>
-                <input type="text" id="sheetId" value="1aCj4zG0UGLf-49Ph18LZPf92kkJAxyS0zOqI_FBIuDI" placeholder="ID da planilha do Google Sheets" disabled>
-            </div>
-            
-            <div class="config-row">
-                <label>Aba destino:</label>
-                <input type="text" id="sheetTab" value="exportada" placeholder="Nome da aba" disabled>
-            </div>
-            
-            <div class="config-row">
-                <label>Célula inicial:</label>
-                <input type="text" id="startCell" value="A2" placeholder="Ex: A2" disabled>
-            </div>
-            
-            <div class="auth-section" id="authSection">
-                <p>🔐 Para exportar, você precisa autorizar o acesso à sua conta Google.</p>
-                <button id="authButton">Autorizar Google Sheets</button>
-                <div id="authStatus" class="auth-status"></div>
-            </div>
-        </div>
-
-        <div id="filterInfo" class="filter-info" style="display: none;">
-            <div>
-                Mostrando <span id="visibleRowsCount">0</span> de <span id="totalRowsCount">0</span> linhas
-            </div>
-            <button id="clearFilters" class="clear-filters">Limpar filtros</button>
-            <div class="filter-stats">
-                <span id="filterTime"></span>
-            </div>
-        </div>
-
-        <!-- Botão de exportação para Google Sheets -->
-        <div class="export-container" id="exportContainer" style="display: none;">
-            <button class="export-btn" id="exportToSheetsBtn" disabled>
-                📤 Exportar para Google Sheets
-            </button>
-        </div>
-
-        <div class="table-container" id="tableContainer" style="display: none;">
-            <div class="resize-guide" id="resizeGuide"></div>
-            <div class="virtual-scroll-container">
-                <div class="virtual-scroll-content" id="virtualScrollContent">
-                    <table id="excelTable">
-                        <thead id="tableHeader">
-                            <!-- Cabeçalho será inserido via JavaScript -->
-                        </thead>
-                        <tbody id="tableBody">
-                            <!-- Dados serão inseridos via JavaScript -->
-                        </tbody>
-                    </table>
-                </div>
-                <div class="virtual-scroll-bar" id="virtualScrollBar">
-                    <div class="virtual-scroll-thumb" id="virtualScrollThumb"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="loading-indicator" id="loadingIndicator">
-        Processando...
-    </div>
-
-    <!-- Scripts do Google API -->
-    <script src="https://accounts.google.com/gsi/client"></script>
-    <script src="https://apis.google.com/js/api.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    
-    <script>
-        // 🔴 COLOQUE SUA API KEY AQUI 🔴
-        const API_KEY = 'AIzaSyAkzqj5mSzG7bUpb39Krr7mR_Lv3wKEp7k'; // Você precisa criar esta no Google Cloud Console
-        
-        // ✅ SEU CLIENT ID JÁ ESTÁ CONFIGURADO ✅
-        const CLIENT_ID = '829775393804-3ulshep1psi26kt6vs0l978k7u256q23.apps.googleusercontent.com';
-        const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
-
-        let tokenClient;
-        let accessToken = null;
-        let gapiInited = false;
-        let gisInited = false;
-
-        document.addEventListener('DOMContentLoaded', function() {
-            const fileInput = document.getElementById('fileInput');
-            const uploadArea = document.getElementById('uploadArea');
-            const tableContainer = document.getElementById('tableContainer');
-            const tableHeader = document.getElementById('tableHeader');
-            const tableBody = document.getElementById('tableBody');
-            const fileDetails = document.getElementById('fileDetails');
-            const statusMessage = document.getElementById('statusMessage');
-            const resizeGuide = document.getElementById('resizeGuide');
-            const filterInfo = document.getElementById('filterInfo');
-            const visibleRowsCount = document.getElementById('visibleRowsCount');
-            const totalRowsCount = document.getElementById('totalRowsCount');
-            const clearFilters = document.getElementById('clearFilters');
-            const sheetSelector = document.getElementById('sheetSelector');
-            const sheetList = document.getElementById('sheetList');
-            const loadSheetBtn = document.getElementById('loadSheetBtn');
-            const loadingIndicator = document.getElementById('loadingIndicator');
-            const filterTime = document.getElementById('filterTime');
-            const virtualScrollContent = document.getElementById('virtualScrollContent');
-            const virtualScrollBar = document.getElementById('virtualScrollBar');
-            const virtualScrollThumb = document.getElementById('virtualScrollThumb');
-            const googleSheetsConfig = document.getElementById('googleSheetsConfig');
-            const exportContainer = document.getElementById('exportContainer');
-            const exportToSheetsBtn = document.getElementById('exportToSheetsBtn');
-            const authButton = document.getElementById('authButton');
-            const authStatus = document.getElementById('authStatus');
-
-            let currentWorkbook = null;
-            let currentResizer = null;
-            let startX = 0;
-            let startWidth = 0;
-            let currentTh = null;
-            
-            // Dados em cache
-            let cachedData = {
-                cabecalho: [],
-                linhas: [],
-                linhasFiltradas: [],
-                tiposColuna: [],
-                nomeAba: ''
-            };
-            
-            // Configurações de virtual scrolling
-            const ROW_HEIGHT = 20;
-            const BUFFER_SIZE = 20;
-            let visibleStartIndex = 0;
-            let visibleEndIndex = 0;
-            let scrollTimeout = null;
-            let filterTimeout = null;
-            
-            let lastFilterTime = 0;
-
-            // Função para mostrar/esconder loading
-            function setLoading(show) {
-                loadingIndicator.classList.toggle('active', show);
-            }
-
-            // Funções de autenticação Google
-            window.gapiLoaded = function() {
-                gapi.load('client', initializeGapiClient);
-            }
-
-            async function initializeGapiClient() {
-                await gapi.client.init({
-                    apiKey: API_KEY,
-                    discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
-                });
-                gapiInited = true;
-                maybeEnableButtons();
-            }
-
-            window.gisLoaded = function() {
-                tokenClient = google.accounts.oauth2.initTokenClient({
-                    client_id: CLIENT_ID,
-                    scope: SCOPES,
-                    callback: '', // defined later
-                });
-                gisInited = true;
-                maybeEnableButtons();
-            }
-
-            function maybeEnableButtons() {
-                if (gapiInited && gisInited) {
-                    authButton.disabled = false;
-                }
-            }
-
-            // Função para lidar com o clique no botão de autenticação
-            authButton.addEventListener('click', function() {
-                if (API_KEY === 'SUA_API_KEY_AQUI') {
-                    authStatus.className = 'auth-status error';
-                    authStatus.textContent = '❌ Erro: Você precisa configurar a API_KEY no código primeiro!';
-                    return;
-                }
-
-                tokenClient.callback = async (resp) => {
-                    if (resp.error !== undefined) {
-                        authStatus.className = 'auth-status error';
-                        authStatus.textContent = '❌ Erro na autenticação: ' + resp.error;
-                        return;
-                    }
-                    accessToken = resp.access_token;
-                    authStatus.className = 'auth-status success';
-                    authStatus.textContent = '✅ Autorizado com sucesso! Agora você pode exportar.';
-                    exportToSheetsBtn.disabled = false;
-                };
-
-                if (accessToken === null) {
-                    tokenClient.requestAccessToken({ prompt: 'consent' });
-                } else {
-                    tokenClient.requestAccessToken({ prompt: '' });
-                }
-            });
-
-            // Funções de formatação
-            function formatarNumeroBrasil(valor) {
-                if (valor === null || valor === undefined || valor === '') return '';
-                if (typeof valor === 'string') {
-                    valor = valor.replace(/\./g, '').replace(',', '.');
-                }
-                let numero = parseFloat(valor);
-                if (isNaN(numero)) return valor;
-                return numero.toLocaleString('pt-BR', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                    useGrouping: true
-                });
-            }
-
-            function formatarCodigoSemPonto(valor) {
-                if (valor === null || valor === undefined || valor === '') return '';
-                if (typeof valor === 'string') {
-                    valor = valor.replace(/\./g, '').replace(',', '');
-                }
-                let numero = parseFloat(valor);
-                if (isNaN(numero)) return valor;
-                return numero.toString();
-            }
-
-            function formatarNumeroInteiro(valor) {
-                if (valor === null || valor === undefined || valor === '') return '';
-                if (typeof valor === 'string') {
-                    valor = valor.replace(/\./g, '').replace(',', '.');
-                }
-                let numero = parseFloat(valor);
-                if (isNaN(numero)) return valor;
-                return Math.round(numero).toLocaleString('pt-BR', {
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 0,
-                    useGrouping: true
-                });
-            }
-
-            function formatarDataExcel(valor) {
-                if (valor === null || valor === undefined || valor === '') return '';
-                
-                if (typeof valor === 'number') {
-                    const dataExcel = new Date((valor - 25569) * 86400 * 1000);
-                    if (!isNaN(dataExcel.getTime())) {
-                        const dia = dataExcel.getDate().toString().padStart(2, '0');
-                        const mes = (dataExcel.getMonth() + 1).toString().padStart(2, '0');
-                        const ano = dataExcel.getFullYear();
-                        return `${dia}/${mes}/${ano}`;
-                    }
-                }
-                
-                if (typeof valor === 'string') {
-                    const data = new Date(valor);
-                    if (!isNaN(data.getTime())) {
-                        const dia = data.getDate().toString().padStart(2, '0');
-                        const mes = (data.getMonth() + 1).toString().padStart(2, '0');
-                        const ano = data.getFullYear();
-                        return `${dia}/${mes}/${ano}`;
-                    }
-                    
-                    if (!isNaN(parseFloat(valor))) {
-                        const num = parseFloat(valor);
-                        const dataExcel = new Date((num - 25569) * 86400 * 1000);
-                        if (!isNaN(dataExcel.getTime())) {
-                            const dia = dataExcel.getDate().toString().padStart(2, '0');
-                            const mes = (dataExcel.getMonth() + 1).toString().padStart(2, '0');
-                            const ano = dataExcel.getFullYear();
-                            return `${dia}/${mes}/${ano}`;
-                        }
-                    }
-                }
-                
-                return valor;
-            }
-
-            function determinarTipoColuna(nomeColuna) {
-                if (!nomeColuna) return 'texto';
-                
-                const nomeLower = nomeColuna.toLowerCase().trim();
-                
-                if (nomeLower.includes('data da remessa') || nomeLower.includes('data')) {
-                    return 'data';
-                }
-                
-                const colunasCodigo = [
-                    'cod. sec', 'cod sec', 'cod sec.', 'cod.sec',
-                    'cod. custo', 'cod custo', 'cod custo.', 'cod.custo',
-                    'cod. inep', 'cod inep', 'cod inep.', 'cod.inep',
-                    'id custro', 'id_custro', 'idcustro',
-                    'cartao', 'cartão'
-                ];
-                
-                for (let codigo of colunasCodigo) {
-                    if (nomeLower.includes(codigo)) {
-                        return 'codigo_sem_ponto';
-                    }
-                }
-                
-                if (nomeLower.startsWith('cod') || 
-                    nomeLower.includes('cod.') || 
-                    nomeLower.includes('cód.') ||
-                    nomeLower.includes(' id ') ||
-                    nomeLower.startsWith('id ') ||
-                    nomeLower.includes('cartao') ||
-                    nomeLower.includes('cartão')) {
-                    return 'codigo_sem_ponto';
-                }
-                
-                if (nomeLower.includes('remessa')) {
-                    return 'inteiro';
-                }
-                
-                if (nomeLower.includes('sub?') || nomeLower.includes('fonte') || nomeLower.includes('deputado')) {
-                    return 'codigo_sem_ponto';
-                }
-                
-                const colunasMonetarias = [
-                    'valor', 'preço', 'preco', 'total', 'saldo', 'custo', 'orçamento', 'orcamento',
-                    'limite', 'disponivel', 'implantado', 'despesas', 'capital', 'custeio',
-                    'original', 'banco', 'maximo configu', 'máximo configu'
-                ];
-                
-                if (colunasMonetarias.some(col => nomeLower.includes(col))) {
-                    return 'monetario';
-                }
-                
-                return 'texto';
-            }
-
-            function formatarCelula(valor, tipo) {
-                if (tipo === 'monetario') {
-                    return formatarNumeroBrasil(valor);
-                } else if (tipo === 'codigo_sem_ponto') {
-                    return formatarCodigoSemPonto(valor);
-                } else if (tipo === 'inteiro') {
-                    return formatarNumeroInteiro(valor);
-                } else if (tipo === 'data') {
-                    return formatarDataExcel(valor);
-                }
-                return valor;
-            }
-
-            function prepararDadosParaSheets() {
-                const dados = [];
-                
-                // Adiciona cabeçalho
-                dados.push(cachedData.cabecalho);
-                
-                // Adiciona linhas filtradas com valores originais
-                cachedData.linhasFiltradas.forEach(linha => {
-                    const linhaDados = linha.map((celula, index) => {
-                        const tipo = cachedData.tiposColuna[index];
-                        
-                        if (celula === null || celula === undefined || celula === '') {
-                            return '';
-                        }
-                        
-                        // Para datas no formato brasileiro, converter para formato ISO para o Sheets
-                        if (tipo === 'data' && typeof celula === 'string' && celula.includes('/')) {
-                            const partes = celula.split('/');
-                            if (partes.length === 3) {
-                                return `${partes[2]}-${partes[1]}-${partes[0]}`; // yyyy-mm-dd
-                            }
-                        }
-                        
-                        // Para números, remover formatação brasileira
-                        if (tipo === 'monetario' || tipo === 'inteiro' || tipo === 'codigo_sem_ponto') {
-                            if (typeof celula === 'string') {
-                                const valorLimpo = celula.replace(/\./g, '').replace(',', '.');
-                                const num = parseFloat(valorLimpo);
-                                if (!isNaN(num)) return num;
-                            }
-                        }
-                        
-                        return celula;
-                    });
-                    dados.push(linhaDados);
-                });
-                
-                return dados;
-            }
-
-            async function exportarParaGoogleSheets() {
-                if (!accessToken) {
-                    mostrarStatus('Por favor, autorize o acesso ao Google Sheets primeiro', 'error');
-                    return;
-                }
-
-                setLoading(true);
-
-                try {
-                    const dados = prepararDadosParaSheets();
-                    const range = 'exportada!A2';
-
-                    // Limpa o range antes de escrever
-                    await gapi.client.sheets.spreadsheets.values.clear({
-                        spreadsheetId: '1aCj4zG0UGLf-49Ph18LZPf92kkJAxyS0zOqI_FBIuDI',
-                        range: range
-                    });
-
-                    // Escreve os dados
-                    const response = await gapi.client.sheets.spreadsheets.values.update({
-                        spreadsheetId: '1aCj4zG0UGLf-49Ph18LZPf92kkJAxyS0zOqI_FBIuDI',
-                        range: range,
-                        valueInputOption: 'USER_ENTERED',
-                        resource: {
-                            values: dados
-                        }
-                    });
-
-                    if (response.status === 200) {
-                        mostrarStatus(`✅ Dados exportados com sucesso! ${dados.length - 1} linhas para exportada!A2`, 'success');
-                        
-                        // Abre a planilha em uma nova aba
-                        window.open('https://docs.google.com/spreadsheets/d/1aCj4zG0UGLf-49Ph18LZPf92kkJAxyS0zOqI_FBIuDI/edit', '_blank');
-                    } else {
-                        throw new Error('Erro ao exportar dados');
-                    }
-
-                } catch (error) {
-                    console.error('Erro ao exportar:', error);
-                    mostrarStatus('Erro ao exportar para Google Sheets: ' + error.message, 'error');
-                } finally {
-                    setLoading(false);
-                }
-            }
-
-            function aplicarFiltrosDebounced() {
-                const filterInputs = document.querySelectorAll('.filter-input');
-                const filtros = Array.from(filterInputs).map(input => input.value.toLowerCase().trim());
-                
-                filterInputs.forEach(input => input.classList.add('loading'));
-                
-                if (filterTimeout) {
-                    clearTimeout(filterTimeout);
-                }
-                
-                filterTimeout = setTimeout(() => {
-                    const startTime = performance.now();
-                    
-                    setTimeout(() => {
-                        const linhasFiltradas = cachedData.linhas.filter(linha => {
-                            for (let i = 0; i < filtros.length; i++) {
-                                if (filtros[i] !== '') {
-                                    const valor = linha[i] !== undefined && linha[i] !== null ? linha[i].toString() : '';
-                                    if (!valor.toLowerCase().includes(filtros[i])) {
-                                        return false;
-                                    }
-                                }
-                            }
-                            return true;
-                        });
-                        
-                        cachedData.linhasFiltradas = linhasFiltradas;
-                        
-                        visibleRowsCount.textContent = linhasFiltradas.length;
-                        filterInfo.style.display = linhasFiltradas.length < cachedData.linhas.length ? 'flex' : 'none';
-                        
-                        const endTime = performance.now();
-                        lastFilterTime = endTime - startTime;
-                        filterTime.textContent = `(filtro em ${lastFilterTime.toFixed(0)}ms)`;
-                        
-                        filterInputs.forEach(input => input.classList.remove('loading'));
-                        
-                        atualizarVirtualScrolling();
-                    }, 0);
-                }, 300);
-            }
-
-            function initVirtualScrolling() {
-                const container = document.querySelector('.table-container');
-                const totalLinhas = cachedData.linhasFiltradas.length;
-                const containerHeight = container.clientHeight;
-                const totalHeight = totalLinhas * ROW_HEIGHT;
-                
-                virtualScrollContent.style.height = totalHeight + 'px';
-                virtualScrollContent.style.position = 'relative';
-                
-                const thumbHeight = Math.max(30, (containerHeight / totalHeight) * containerHeight);
-                virtualScrollThumb.style.height = thumbHeight + 'px';
-                
-                atualizarVirtualScrolling();
-            }
-
-            function atualizarVirtualScrolling() {
-                const container = document.querySelector('.table-container');
-                const scrollTop = container.scrollTop;
-                const containerHeight = container.clientHeight;
-                const totalLinhas = cachedData.linhasFiltradas.length;
-                
-                visibleStartIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - BUFFER_SIZE);
-                visibleEndIndex = Math.min(
-                    totalLinhas - 1,
-                    Math.ceil((scrollTop + containerHeight) / ROW_HEIGHT) + BUFFER_SIZE
-                );
-                
-                const thumbTop = (scrollTop / (container.scrollHeight - containerHeight)) * (containerHeight - virtualScrollThumb.clientHeight);
-                virtualScrollThumb.style.top = thumbTop + 'px';
-                
-                renderizarLinhasVisiveis();
-            }
-
-            function renderizarLinhasVisiveis() {
-                const fragment = document.createDocumentFragment();
-                
-                for (let i = visibleStartIndex; i <= visibleEndIndex && i < cachedData.linhasFiltradas.length; i++) {
-                    const linha = cachedData.linhasFiltradas[i];
-                    const tr = document.createElement('tr');
-                    tr.setAttribute('data-index', i);
-                    
-                    linha.forEach((celula, colIndex) => {
-                        const valor = formatarCelula(celula, cachedData.tiposColuna[colIndex]);
-                        const td = document.createElement('td');
-                        td.textContent = valor;
-                        
-                        if (cachedData.tiposColuna[colIndex] === 'monetario') {
-                            td.className = 'monetary-value';
-                        } else if (cachedData.tiposColuna[colIndex] === 'codigo_sem_ponto') {
-                            td.className = 'code-value';
-                        } else if (cachedData.tiposColuna[colIndex] === 'data') {
-                            td.className = 'date-value';
-                        }
-                        
-                        tr.appendChild(td);
-                    });
-                    
-                    fragment.appendChild(tr);
-                }
-                
-                tableBody.innerHTML = '';
-                tableBody.appendChild(fragment);
-                
-                tableBody.style.position = 'absolute';
-                tableBody.style.top = (visibleStartIndex * ROW_HEIGHT) + 'px';
-                tableBody.style.left = '0';
-                tableBody.style.right = '0';
-            }
-
-            function carregarListaAbas(workbook, nomeArquivo) {
-                const abas = workbook.SheetNames;
-                sheetList.innerHTML = '';
-                
-                abas.forEach(aba => {
-                    const option = document.createElement('option');
-                    option.value = aba;
-                    option.textContent = aba;
-                    sheetList.appendChild(option);
-                });
-
-                fileDetails.style.display = 'block';
-                fileDetails.innerHTML = `
-                    <strong>Arquivo:</strong> ${nomeArquivo}<br>
-                    <strong>Total de abas:</strong> ${abas.length}<br>
-                    <strong>Selecione uma aba para visualizar os dados</strong>
-                `;
-
-                sheetSelector.classList.add('active');
-                tableContainer.style.display = 'none';
-                googleSheetsConfig.style.display = 'none';
-                exportContainer.style.display = 'none';
-                filterInfo.style.display = 'none';
-                
-                mostrarStatus('Arquivo carregado. Selecione uma aba para visualizar.', 'info');
-            }
-
-            function carregarAbaSelecionada() {
-                const abaSelecionada = sheetList.value;
-                
-                if (!abaSelecionada || !currentWorkbook) {
-                    mostrarStatus('Selecione uma aba válida', 'error');
-                    return;
-                }
-
-                setLoading(true);
-
-                try {
-                    const worksheet = currentWorkbook.Sheets[abaSelecionada];
-                    
-                    const dados = XLSX.utils.sheet_to_json(worksheet, { 
-                        header: 1,
-                        defval: '' 
-                    });
-
-                    if (dados.length === 0) {
-                        mostrarStatus('Aba vazia ou sem dados', 'error');
-                        setLoading(false);
-                        return;
-                    }
-
-                    const linhaCabecalho = 0;
-                    const cabecalho = dados[linhaCabecalho].map(col => col ? col.toString().trim() : '');
-                    
-                    const linhas = dados.slice(linhaCabecalho + 1).filter(linha => 
-                        linha.some(celula => celula !== '' && celula !== null && celula !== undefined)
-                    );
-
-                    cachedData.cabecalho = cabecalho;
-                    cachedData.linhas = linhas;
-                    cachedData.linhasFiltradas = linhas;
-                    cachedData.tiposColuna = cabecalho.map(determinarTipoColuna);
-                    cachedData.nomeAba = abaSelecionada;
-
-                    fileDetails.innerHTML = `
-                        <strong>Arquivo:</strong> ${fileDetails.innerHTML.match(/Arquivo:<\/strong>([^<]+)/)?.[1] || 'Carregado'}<br>
-                        <strong>Aba atual:</strong> ${abaSelecionada}<br>
-                        <strong>Linhas de dados:</strong> ${linhas.length.toLocaleString()}<br>
-                        <strong>Colunas:</strong> ${cabecalho.length}
-                    `;
-
-                    totalRowsCount.textContent = linhas.length;
-                    visibleRowsCount.textContent = linhas.length;
-
-                    let headerHtml = '<tr class="header-row">';
-                    cabecalho.forEach((coluna, index) => {
-                        const nomeColuna = coluna && coluna !== '' ? coluna : `Coluna ${index + 1}`;
-                        headerHtml += `<th style="width: 150px;">${nomeColuna}</th>`;
-                    });
-                    headerHtml += '</tr>';
-
-                    headerHtml += '<tr class="filter-row">';
-                    cabecalho.forEach((coluna, index) => {
-                        headerHtml += `<th><input type="text" class="filter-input" placeholder="Filtrar..." data-column="${index}"></th>`;
-                    });
-                    headerHtml += '</tr>';
-
-                    tableHeader.innerHTML = headerHtml;
-
-                    document.querySelectorAll('.filter-input').forEach(input => {
-                        input.addEventListener('keyup', aplicarFiltrosDebounced);
-                    });
-
-                    tableContainer.style.display = 'block';
-                    googleSheetsConfig.style.display = 'block';
-                    exportContainer.style.display = 'flex';
-                    
-                    setTimeout(() => {
-                        initVirtualScrolling();
-                        initResizeHandlers();
-                        setLoading(false);
-                    }, 100);
-
-                } catch (error) {
-                    console.error('Erro ao processar aba:', error);
-                    mostrarStatus('Erro ao processar a aba selecionada.', 'error');
-                    setLoading(false);
-                }
-            }
-
-            function limparFiltros() {
-                const filterInputs = document.querySelectorAll('.filter-input');
-                filterInputs.forEach(input => {
-                    input.value = '';
-                });
-                
-                cachedData.linhasFiltradas = cachedData.linhas;
-                visibleRowsCount.textContent = cachedData.linhas.length;
-                filterInfo.style.display = 'none';
-                
-                atualizarVirtualScrolling();
-            }
-
-            function initResizeHandlers() {
-                const thElements = document.querySelectorAll('.header-row th');
-                
-                thElements.forEach((th, index) => {
-                    const existingResizer = th.querySelector('.resizer');
-                    if (existingResizer) {
-                        existingResizer.remove();
-                    }
-
-                    const resizer = document.createElement('div');
-                    resizer.className = 'resizer';
-                    resizer.setAttribute('data-column', index);
-                    
-                    resizer.addEventListener('dblclick', function(e) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        const columnIndex = this.getAttribute('data-column');
-                        autoAjustarColuna(parseInt(columnIndex));
-                    });
-
-                    resizer.addEventListener('mousedown', startResize);
-                    
-                    th.appendChild(resizer);
-                });
-            }
-
-            function autoAjustarColuna(columnIndex) {
-                const th = document.querySelectorAll('.header-row th')[columnIndex];
-                if (th) {
-                    th.style.width = '200px';
-                }
-            }
-
-            function startResize(e) {
-                e.preventDefault();
-                e.stopPropagation();
-
-                currentResizer = e.target;
-                currentTh = currentResizer.parentElement;
-                startX = e.pageX;
-                startWidth = currentTh.offsetWidth;
-
-                resizeGuide.style.display = 'block';
-                resizeGuide.style.left = startX + 'px';
-                resizeGuide.classList.add('active');
-
-                document.addEventListener('mousemove', resize);
-                document.addEventListener('mouseup', stopResize);
-
-                currentResizer.classList.add('resizing');
-            }
-
-            function resize(e) {
-                if (!currentResizer || !currentTh) return;
-
-                resizeGuide.style.left = e.pageX + 'px';
-
-                const newWidth = startWidth + (e.pageX - startX);
-                
-                if (newWidth > 50) {
-                    currentTh.style.width = newWidth + 'px';
-                    
-                    const columnIndex = currentResizer.getAttribute('data-column');
-                    const rows = document.querySelectorAll('#tableBody tr');
-                    
-                    rows.forEach(row => {
-                        const cell = row.children[columnIndex];
-                        if (cell) {
-                            cell.style.width = newWidth + 'px';
-                        }
-                    });
-
-                    const filterTh = document.querySelectorAll('.filter-row th')[columnIndex];
-                    if (filterTh) {
-                        filterTh.style.width = newWidth + 'px';
-                    }
-                }
-            }
-
-            function stopResize() {
-                if (currentResizer) {
-                    currentResizer.classList.remove('resizing');
-                }
-
-                resizeGuide.style.display = 'none';
-                resizeGuide.classList.remove('active');
-
-                document.removeEventListener('mousemove', resize);
-                document.removeEventListener('mouseup', stopResize);
-
-                currentResizer = null;
-                currentTh = null;
-            }
-
-            function processarArquivo(arquivo) {
-                const reader = new FileReader();
-                
-                reader.onload = function(e) {
-                    try {
-                        const data = new Uint8Array(e.target.result);
-                        currentWorkbook = XLSX.read(data, { type: 'array' });
-                        
-                        carregarListaAbas(currentWorkbook, arquivo.name);
-
-                    } catch (error) {
-                        console.error('Erro ao processar arquivo:', error);
-                        mostrarStatus('Erro ao processar o arquivo. Verifique se é um arquivo Excel válido.', 'error');
-                    }
-                };
-
-                reader.onerror = function() {
-                    mostrarStatus('Erro ao ler o arquivo', 'error');
-                };
-
-                reader.readAsArrayBuffer(arquivo);
-            }
-
-            function mostrarStatus(mensagem, tipo) {
-                statusMessage.style.display = 'block';
-                statusMessage.className = `status-message ${tipo}`;
-                statusMessage.textContent = mensagem;
-
-                setTimeout(() => {
-                    statusMessage.style.display = 'none';
-                }, 5000);
-            }
-
-            // Event listeners
-            fileInput.addEventListener('change', function(e) {
-                const arquivo = e.target.files[0];
-                if (arquivo) {
-                    processarArquivo(arquivo);
-                }
-            });
-
-            uploadArea.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                this.classList.add('dragover');
-            });
-
-            uploadArea.addEventListener('dragleave', function(e) {
-                e.preventDefault();
-                this.classList.remove('dragover');
-            });
-
-            uploadArea.addEventListener('drop', function(e) {
-                e.preventDefault();
-                this.classList.remove('dragover');
-                
-                const arquivo = e.dataTransfer.files[0];
-                if (arquivo && (arquivo.name.endsWith('.xlsx') || arquivo.name.endsWith('.xlsm') || arquivo.name.endsWith('.xls'))) {
-                    fileInput.files = e.dataTransfer.files;
-                    processarArquivo(arquivo);
-                } else {
-                    mostrarStatus('Por favor, selecione um arquivo .xlsx, .xlsm ou .xls válido', 'error');
-                }
-            });
-
-            loadSheetBtn.addEventListener('click', carregarAbaSelecionada);
-            
-            clearFilters.addEventListener('click', limparFiltros);
-
-            // Evento de exportação para Google Sheets
-            exportToSheetsBtn.addEventListener('click', exportarParaGoogleSheets);
-
-            // Virtual scrolling listeners
-            document.querySelector('.table-container').addEventListener('scroll', function(e) {
-                if (scrollTimeout) {
-                    cancelAnimationFrame(scrollTimeout);
-                }
-                scrollTimeout = requestAnimationFrame(() => {
-                    atualizarVirtualScrolling();
-                });
-            });
-
-            virtualScrollThumb.addEventListener('mousedown', function(e) {
-                e.preventDefault();
-                const startY = e.clientY;
-                const startScrollTop = document.querySelector('.table-container').scrollTop;
-                
-                function onMouseMove(e) {
-                    const deltaY = e.clientY - startY;
-                    const container = document.querySelector('.table-container');
-                    const scrollDelta = (deltaY / container.clientHeight) * container.scrollHeight;
-                    container.scrollTop = startScrollTop + scrollDelta;
-                }
-                
-                function onMouseUp() {
-                    document.removeEventListener('mousemove', onMouseMove);
-                    document.removeEventListener('mouseup', onMouseUp);
-                }
-                
-                document.addEventListener('mousemove', onMouseMove);
-                document.addEventListener('mouseup', onMouseUp);
-            });
-
-            // Carregar APIs do Google
-            gapiLoaded();
-            gisLoaded();
-        });
-    </script>
+
+<div class="sidebar">
+
+<button class="menu-item" onclick="carregarAba('faed')">
+<i class="fas fa-table"></i> faed
+</button>
+
+<button class="menu-item" onclick="carregarAba('pnae')">
+<i class="fas fa-book-open"></i> pnae
+</button>
+
+<button class="menu-item" onclick="carregarAba('saldo')">
+<i class="fas fa-coins"></i> saldo manutenção
+</button>
+
+</div>
+
+<div class="main-content">
+
+<h2 id="nome-aba">Tabela</h2>
+
+<div id="tabela-container">
+Clique em um menu
+</div>
+
+</div>
+
+<script>
+
+const REPO_BASE =
+"https://raw.githubusercontent.com/DevFjss/ImportarPlanilha/main/SALDO_DISPONIVEL_CARTÃO_PNAE_2026.xlsx";
+
+// =============================
+// MAPA DAS PLANILHAS
+// =============================
+
+const MAPA_ABAS = {
+
+pnae:{
+nomeExibicao:"PNAE",
+icone:"fa-book-open",
+arquivo:"minha-pasta/pnae.xlsx"
+},
+
+// deixe aberto para adicionar depois
+
+faed:{
+nomeExibicao:"FAED",
+icone:"fa-table",
+arquivo:"minha-pasta/faed.xlsx"
+},
+
+saldo:{
+nomeExibicao:"SALDO MANUTENÇÃO",
+icone:"fa-coins",
+arquivo:"minha-pasta/saldo.xlsx"
+}
+
+};
+
+const container =
+document.getElementById("tabela-container");
+
+const titulo =
+document.getElementById("nome-aba");
+
+// =============================
+// CARREGAR ABA
+// =============================
+
+async function carregarAba(chave){
+
+const config = MAPA_ABAS[chave];
+
+if(!config){
+
+container.innerHTML="Aba não configurada";
+
+return;
+
+}
+
+titulo.innerText = config.nomeExibicao;
+
+container.innerHTML="Carregando planilha...";
+
+const url =
+REPO_BASE + config.arquivo;
+
+try{
+
+const resposta =
+await fetch(url);
+
+const data =
+await resposta.arrayBuffer();
+
+const workbook =
+XLSX.read(data);
+
+const sheet =
+workbook.Sheets[workbook.SheetNames[0]];
+
+const dados =
+XLSX.utils.sheet_to_json(sheet,{header:1});
+
+gerarTabela(dados);
+
+}catch(e){
+
+container.innerHTML="Erro ao carregar planilha";
+
+console.log(e);
+
+}
+
+}
+
+// =============================
+// GERAR TABELA
+// =============================
+
+function gerarTabela(dados){
+
+const tabela =
+document.createElement("table");
+
+const thead =
+document.createElement("thead");
+
+const trHead =
+document.createElement("tr");
+
+dados[0].forEach(col=>{
+
+const th =
+document.createElement("th");
+
+th.textContent = col;
+
+trHead.appendChild(th);
+
+});
+
+thead.appendChild(trHead);
+
+tabela.appendChild(thead);
+
+const tbody =
+document.createElement("tbody");
+
+for(let i=1;i<dados.length;i++){
+
+const tr =
+document.createElement("tr");
+
+dados[i].forEach(col=>{
+
+const td =
+document.createElement("td");
+
+td.textContent = col;
+
+tr.appendChild(td);
+
+});
+
+tbody.appendChild(tr);
+
+}
+
+tabela.appendChild(tbody);
+
+container.innerHTML="";
+
+container.appendChild(tabela);
+
+}
+
+</script>
+
 </body>
 </html>
