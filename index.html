@@ -291,13 +291,13 @@
                         }
                     }
 
-        // URL da planilha de Manutenção
+      // URL da planilha de Manutenção
 const URL_PLANILHA_MANUTENCAO = "https://raw.githubusercontent.com/DevFjss/ImportarPlanilha/main/GERADOR_REMESSA_CARTÃO_MANUTENÇÃO_2026.xlsm";
 
-// Função para carregar planilha de Manutenção
+// Função para carregar planilha de Manutenção - ABA ESPECÍFICA
 async function carregarMANUTENCAO() {
     try {
-        container.innerHTML = '<div class="carregando">🔄 Carregando planilha Manutenção...</div>';
+        container.innerHTML = '<div class="carregando">🔄 Carregando planilha Manutenção (Backup_Remessa)...</div>';
         
         const resposta = await fetch(URL_PLANILHA_MANUTENCAO);
         
@@ -306,19 +306,40 @@ async function carregarMANUTENCAO() {
         }
         
         const buffer = await resposta.arrayBuffer();
-        
-        // Para arquivos .xlsm (com macros), o XLSX também lê normalmente
         const workbook = XLSX.read(buffer, { type: 'array' });
-        const primeiraAba = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[primeiraAba];
         
+        // VERIFICA SE A ABA "Backup_Remessa" EXISTE
+        const nomeAbaDesejada = "Backup_Remessa";
+        const abaEncontrada = workbook.SheetNames.find(nome => 
+            nome.toUpperCase() === nomeAbaDesejada.toUpperCase() || 
+            nome.includes("Backup") || 
+            nome.includes("REMESSA")
+        );
+        
+        if (!abaEncontrada) {
+            // Se não encontrar a aba específica, mostra as abas disponíveis
+            const abasDisponiveis = workbook.SheetNames.join(', ');
+            throw new Error(`Aba "${nomeAbaDesejada}" não encontrada. Abas disponíveis: ${abasDisponiveis}`);
+        }
+        
+        // PEGA A ABA ENCONTRADA
+        const sheet = workbook.Sheets[abaEncontrada];
         const dados = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
         
-        // Usa a MESMA função de processamento
+        // Mostra qual aba está sendo carregada
+        console.log(`Carregando aba: ${abaEncontrada}`);
+        
+        // Usa a função de processamento
         processarEExibirTabela(dados);
         
         // Muda o título
-        document.querySelector('.main-content h2').textContent = '🔧 Visualizador Manutenção 2026';
+        document.querySelector('.main-content h2').textContent = '🔧 Manutenção - Backup_Remessa';
+        
+        // Opcional: mostra status com nome da aba
+        const statusInfo = document.getElementById("status-info");
+        if (statusInfo) {
+            statusInfo.textContent = `📊 Aba: ${abaEncontrada} | ${dados.length} linhas`;
+        }
         
     } catch (erro) {
         container.innerHTML = `<div class="mensagem-inicial" style="color: #d32f2f;">
