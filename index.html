@@ -116,13 +116,21 @@
             white-space: nowrap;
         }
 
-        /* COLUNAS NUMÉRICAS - FORMATO BR */
-        .numero {
-            background: #f5f9ff;
+        /* COLUNAS DE VALORES - FORMATO BR (apenas valores monetários) */
+        td.valor-moeda {
+            background: #f0f6ff;
             text-align: right;
             font-weight: 600;
             color: #0a3a9e;
             font-family: 'Courier New', monospace;
+        }
+
+        /* COLUNAS DE IDENTIFICADOR (Nº, NTE, código, CPF) - SEM FORMATAÇÃO */
+        td.identificador {
+            text-align: left;
+            font-weight: 400;
+            color: #333;
+            background: transparent;
         }
 
         /* LINHAS ALTERNADAS */
@@ -212,7 +220,14 @@
         let mouseXInicial = 0;
         let larguraInicial = 0;
 
-        // FUNÇÃO PRINCIPAL PARA CARREGAR PLANILHA
+        // Palavras-chave para identificar colunas que NÃO devem ser formatadas como número
+        const COLUNAS_IDENTIFICADOR = [
+            'Nº', 'NTE', 'CODIGO SEC', 'CODIGO INEP', 'Nº CARTÃO', 'CPF',
+            'COD.', 'CÓDIGO', 'COD', 'NUMERO', 'NÚMERO', 'ID', 'IDENTIFICADOR',
+            'DOCUMENTO', 'MATRÍCULA', 'REGISTRO'
+        ];
+
+        // Função principal para carregar planilha
         async function carregarPNAE() {
             try {
                 container.innerHTML = '<div class="carregando">🔄 Carregando planilha...</div>';
@@ -245,7 +260,7 @@
 
         // LOCALIZAR LINHA DO CABEÇALHO (procura por "NTE")
         function localizarLinhaCabecalho(dados) {
-            for (let i = 0; i < Math.min(20, dados.length); i++) { // Limita às primeiras 20 linhas
+            for (let i = 0; i < Math.min(30, dados.length); i++) {
                 const linha = dados[i] || [];
                 
                 for (let j = 0; j < linha.length; j++) {
@@ -254,57 +269,79 @@
                     if (celula && typeof celula === 'string') {
                         const texto = celula.toString().toUpperCase().trim();
                         
-                        // Procura por NTE no conteúdo
-                        if (texto.includes('NTE') || texto.includes('NÚCLEO') || texto.includes('MUNICÍPIO')) {
+                        // Procura por palavras-chave de cabeçalho
+                        if (texto.includes('NTE') || 
+                            texto.includes('Nº') || 
+                            texto.includes('CODIGO') || 
+                            texto.includes('CÓDIGO') ||
+                            texto.includes('MUNICÍPIO') ||
+                            texto.includes('CPF')) {
                             console.log(`Cabeçalho encontrado na linha ${i}, coluna ${j}: "${celula}"`);
                             return i;
                         }
-                    } else if (celula && typeof celula === 'number') {
-                        // Ignora números no início
-                        continue;
                     }
                 }
             }
             
             console.log("Cabeçalho não encontrado, usando linha 0");
-            return 0; // Retorna primeira linha se não encontrar
+            return 0;
         }
 
-        // FORMATAR NÚMERO NO PADRÃO BRASILEIRO (1.234,56)
+        // VERIFICAR SE É COLUNA IDENTIFICADOR (NÃO DEVE FORMATAR)
+        function colunaEhIdentificador(textoCabecalho) {
+            if (!textoCabecalho) return false;
+            
+            const texto = textoCabecalho.toString().toUpperCase().trim();
+            
+            // Remove acentos para comparação
+            const textoSemAcento = texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            
+            return COLUNAS_IDENTIFICADOR.some(palavra => {
+                const palavraSemAcento = palavra.toString().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                return textoSemAcento.includes(palavraSemAcento) || texto.includes(palavra);
+            });
+        }
+
+        // VERIFICAR SE VALOR PARECE SER IDENTIFICADOR (Nº, CPF, etc)
+        function valorPareceIdentificador(valor) {
+            if (!valor) return false;
+            
+            const str = valor.toString().trim();
+            
+            // Padrões de identificadores comuns
+            const padroes = [
+                /^\d{11}$/,           // CPF (11 dígitos)
+                /^\d{14}$/,            // CNPJ (14 dígitos)
+                /^\d{3}\.\d{3}\.\d{3}-\d{2}$/, // CPF formatado
+                /^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/, // CNPJ formatado
+                /^\d{8}$/,              // Nº cartão simples
+                /^[A-Z0-9]{4,10}$/i,    // Códigos alfanuméricos
+                /^\d{1,3}$/             // Números pequenos (provavelmente Nº)
+            ];
+            
+            return padroes.some(padrao => padrao.test(str));
+        }
+
+        // FORMATAR NÚMERO NO PADRÃO BRASILEIRO (1.234,56) - APENAS PARA VALORES
         function formatarNumeroBR(valor) {
             if (valor === null || valor === undefined || valor === '') return '';
             
-            const numero = Number(valor);
+            // Tenta converter para número
+            let numero;
+            if (typeof valor === 'number') {
+                numero = valor;
+            } else {
+                const strValor = valor.toString().replace(',', '.').replace(/[^\d.-]/g, '');
+                numero = parseFloat(strValor);
+            }
             
             if (isNaN(numero)) return valor;
             
+            // Formata com 2 casas decimais
             return numero.toLocaleString('pt-BR', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
             });
-        }
-
-        // VERIFICAR SE UMA COLUNA É NUMÉRICA
-        function colunaPareceNumerica(valores) {
-            let contadorNumerico = 0;
-            let total = 0;
-            
-            for (let i = 0; i < Math.min(10, valores.length); i++) {
-                const val = valores[i];
-                if (val === undefined || val === null || val === '') continue;
-                
-                if (typeof val === 'number') {
-                    contadorNumerico++;
-                } else if (typeof val === 'string') {
-                    const str = val.toString().trim();
-                    if (str !== '' && !isNaN(str.replace(/[^\d,-]/g, '').replace(',', '.'))) {
-                        contadorNumerico++;
-                    }
-                }
-                total++;
-            }
-            
-            return total > 0 && (contadorNumerico / total) > 0.6;
         }
 
         // PROCESSAR E CRIAR TABELA
@@ -318,16 +355,19 @@
             const linhaCabecalho = localizarLinhaCabecalho(dados);
             
             console.log(`Linha do cabeçalho: ${linhaCabecalho}`);
-            console.log(`Total de linhas: ${dados.length}`);
             
             // Pega cabeçalho
             const cabecalho = dados[linhaCabecalho] || [];
             
-            // Prepara array para identificar colunas numéricas
-            const primeirasLinhas = [];
-            for (let i = linhaCabecalho + 1; i < Math.min(linhaCabecalho + 15, dados.length); i++) {
-                if (dados[i]) primeirasLinhas.push(dados[i]);
-            }
+            // Identifica quais colunas são identificadores (não formatar)
+            const colunasIdentificador = [];
+            cabecalho.forEach((texto, index) => {
+                if (colunaEhIdentificador(texto)) {
+                    colunasIdentificador.push(index);
+                }
+            });
+            
+            console.log("Colunas identificador (não formatar):", colunasIdentificador);
             
             // Cria tabela
             const tabela = document.createElement("table");
@@ -370,21 +410,49 @@
                     const valor = linha[index] !== undefined ? linha[index] : '';
                     const td = document.createElement("td");
                     
-                    // Verifica se é numérico
-                    if (typeof valor === 'number') {
-                        td.classList.add("numero");
-                        td.textContent = formatarNumeroBR(valor);
-                    } else if (typeof valor === 'string' && valor.trim() !== '' && !isNaN(valor.replace(',', '.'))) {
-                        // Tenta converter string numérica
-                        const numero = parseFloat(valor.replace(',', '.'));
-                        if (!isNaN(numero)) {
-                            td.classList.add("numero");
-                            td.textContent = formatarNumeroBR(numero);
+                    // Verifica se esta coluna é identificador (NÃO deve formatar)
+                    if (colunasIdentificador.includes(index)) {
+                        // Coluna identificador - mostrar como texto puro
+                        td.classList.add("identificador");
+                        td.textContent = valor;
+                    } 
+                    // Verifica se é valor numérico para formatar
+                    else if (typeof valor === 'number') {
+                        // É número, verifica se parece identificador
+                        if (valorPareceIdentificador(valor) || Number.isInteger(valor) && valor < 1000000) {
+                            // Parece identificador (código, CPF, etc) - não formata
+                            td.classList.add("identificador");
+                            td.textContent = valor;
                         } else {
+                            // Parece valor monetário - formata
+                            td.classList.add("valor-moeda");
+                            td.textContent = formatarNumeroBR(valor);
+                        }
+                    } 
+                    else if (typeof valor === 'string' && valor.trim() !== '') {
+                        // Tenta detectar se é número na string
+                        const strLimpa = valor.replace(/[R$\s.]/g, '').replace(',', '.');
+                        
+                        if (!isNaN(strLimpa) && strLimpa !== '') {
+                            const numero = parseFloat(strLimpa);
+                            
+                            // Verifica se parece identificador
+                            if (valorPareceIdentificador(valor) || Number.isInteger(numero) && numero < 1000000) {
+                                // Parece identificador - mostra original
+                                td.classList.add("identificador");
+                                td.textContent = valor;
+                            } else {
+                                // Parece valor - formata
+                                td.classList.add("valor-moeda");
+                                td.textContent = formatarNumeroBR(numero);
+                            }
+                        } else {
+                            // Texto normal
                             td.textContent = valor;
                         }
                     } else {
-                        td.textContent = valor;
+                        // Vazio ou null
+                        td.textContent = '';
                     }
                     
                     tr.appendChild(td);
@@ -422,19 +490,15 @@
             if (!colunaAtual) return;
             
             const diffX = evento.pageX - mouseXInicial;
-            const novaWidth = Math.max(50, larguraInicial + diffX); // Mínimo 50px
+            const novaWidth = Math.max(50, larguraInicial + diffX);
             
             colunaAtual.style.width = novaWidth + "px";
         }
 
         function pararRedimensionamento() {
-            // Remove listeners
             document.removeEventListener("mousemove", duranteRedimensionamento);
             document.removeEventListener("mouseup", pararRedimensionamento);
-            
-            // Restaura cursor
             document.body.style.cursor = "";
-            
             colunaAtual = null;
         }
 
