@@ -20,7 +20,7 @@
             overflow: hidden;
         }
 
-        /* MENU LATERAL - AJUSTADO */
+        /* MENU LATERAL */
         .sidebar {
             width: 280px;
             background: #0a3a9e;
@@ -143,22 +143,25 @@
             background: #e8f0fe;
         }
 
-        /* RESIZE HANDLE */
+        /* RESIZE HANDLE - MELHORADO */
         .resize-handle {
             position: absolute;
             right: 0;
             top: 0;
-            width: 6px;
+            width: 8px;
             height: 100%;
             cursor: col-resize;
             background: transparent;
             transition: background 0.2s;
-            z-index: 10;
+            z-index: 100;
         }
 
-        .resize-handle:hover,
-        .resize-handle:active {
+        .resize-handle:hover {
             background: rgba(255, 255, 255, 0.4);
+        }
+
+        .resize-handle:active {
+            background: rgba(255, 255, 255, 0.7);
         }
 
         /* MENSAGEM INICIAL */
@@ -186,6 +189,19 @@
             opacity: 0.6;
             padding: 15px 5px;
         }
+
+        /* BARRA DE STATUS */
+        .status-bar {
+            margin-top: 15px;
+            padding: 8px 15px;
+            background: #e6f0ff;
+            border-radius: 20px;
+            color: #0a3a9e;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
     </style>
 </head>
 <body>
@@ -209,7 +225,7 @@
         
         <div>
             Clique para carregar a planilha<br>
-            Arraste as bordas para redimensionar
+            Arraste ▶ as bordas para redimensionar
         </div>
     </div>
 
@@ -222,6 +238,12 @@
                 👈 Clique em um menu para carregar a planilha
             </div>
         </div>
+        
+        <!-- BARRA DE STATUS (INICIALMENTE OCULTA) -->
+        <div id="status-bar" class="status-bar" style="display: none;">
+            <span id="status-info"></span>
+            <span>↔️ Arraste as bordas do cabeçalho</span>
+        </div>
     </div>
 
     <script>
@@ -230,6 +252,8 @@
         const URL_PLANILHA_MANUTENCAO = "https://raw.githubusercontent.com/DevFjss/ImportarPlanilha/main/GERADOR_REMESSA_CARTÃO_MANUTENÇÃO_2026.xlsm";
         
         const container = document.getElementById("tabela-container");
+        const statusBar = document.getElementById("status-bar");
+        const statusInfo = document.getElementById("status-info");
 
         // Variáveis para redimensionamento
         let colunaAtual = null;
@@ -247,15 +271,21 @@
                 .replace(/[\u0300-\u036f]/g, '')
                 .trim();
             
-            // Verifica se contém palavras-chave de identificador
-            if (texto.includes('Nº') || 
-                texto.includes('NTE') || 
-                texto.includes('CPF') ||
-                texto.includes('CARTAO')) {
-                return true;
+            // Lista completa de palavras-chave
+            const palavrasChave = [
+                'Nº', 'NTE', 'CPF', 'CARTAO',
+                'COD SEC', 'COD. SEC', 'CODIGO SEC', 'CODIGO SEC',
+                'COD INEP', 'COD. INEP', 'CODIGO INEP'
+            ];
+            
+            // Verifica se contém alguma das palavras-chave
+            for (const palavra of palavrasChave) {
+                if (texto.includes(palavra)) {
+                    return true;
+                }
             }
             
-            // Para códigos (COD, SEC, INEP)
+            // Verifica padrões gerais
             if (texto.includes('COD') || texto.includes('CODIGO')) {
                 if (texto.includes('SEC') || texto.includes('INEP')) {
                     return true;
@@ -306,6 +336,7 @@
         function processarEExibirTabela(dados, titulo = 'Visualizador') {
             if (!dados || dados.length === 0) {
                 container.innerHTML = '<div class="mensagem-inicial">⚠️ Planilha vazia</div>';
+                statusBar.style.display = 'none';
                 return;
             }
 
@@ -323,6 +354,7 @@
             
             // Cria tabela
             const tabela = document.createElement("table");
+            tabela.id = "planilha-principal";
             
             // CABEÇALHO
             const thead = document.createElement("thead");
@@ -332,13 +364,16 @@
                 const th = document.createElement("th");
                 th.textContent = texto || `Coluna ${index + 1}`;
                 th.style.width = '150px';
+                th.style.minWidth = '80px';
                 th.setAttribute('data-coluna', index);
                 
                 // Handle para redimensionar
                 const handle = document.createElement("div");
                 handle.className = "resize-handle";
+                handle.setAttribute('data-coluna', index);
                 handle.addEventListener("mousedown", (e) => {
                     e.preventDefault();
+                    e.stopPropagation();
                     iniciarRedimensionamento(e, th);
                 });
                 
@@ -351,6 +386,7 @@
             
             // CORPO DA TABELA
             const tbody = document.createElement("tbody");
+            let linhasExibidas = 0;
             
             for (let i = linhaCabecalho + 1; i < dados.length; i++) {
                 const linha = dados[i];
@@ -359,6 +395,7 @@
                     continue;
                 }
                 
+                linhasExibidas++;
                 const tr = document.createElement("tr");
                 
                 cabecalho.forEach((_, index) => {
@@ -397,33 +434,58 @@
             container.innerHTML = '';
             container.appendChild(tabela);
             document.querySelector('.main-content h2').textContent = `📋 ${titulo}`;
+            
+            // Mostra barra de status
+            statusBar.style.display = 'flex';
+            statusInfo.textContent = `📊 ${linhasExibidas} linhas | ${cabecalho.length} colunas`;
         }
 
-        // FUNÇÕES DE REDIMENSIONAMENTO
+        // FUNÇÕES DE REDIMENSIONAMENTO - MELHORADAS
         function iniciarRedimensionamento(e, elemento) {
+            e.preventDefault();
+            e.stopPropagation();
+            
             colunaAtual = elemento;
-            mouseXInicial = e.pageX;
+            mouseXInicial = e.clientX; // Usar clientX é mais preciso
             larguraInicial = elemento.offsetWidth;
+            
+            // Adiciona classe ao handle
+            if (e.target.classList) {
+                e.target.classList.add('active');
+            }
             
             document.addEventListener("mousemove", duranteRedimensionamento);
             document.addEventListener("mouseup", pararRedimensionamento);
             
             document.body.style.cursor = "col-resize";
+            document.body.style.userSelect = "none";
         }
 
         function duranteRedimensionamento(e) {
             if (!colunaAtual) return;
             
-            const diffX = e.pageX - mouseXInicial;
-            const novaWidth = Math.max(80, larguraInicial + diffX);
+            e.preventDefault();
             
+            const diffX = e.clientX - mouseXInicial;
+            const novaWidth = Math.max(60, larguraInicial + diffX);
+            
+            // Aplica largura na coluna
             colunaAtual.style.width = novaWidth + 'px';
+            colunaAtual.style.minWidth = novaWidth + 'px';
+            colunaAtual.style.maxWidth = novaWidth + 'px';
         }
 
         function pararRedimensionamento() {
+            // Remove classe ativa de todos os handles
+            document.querySelectorAll('.resize-handle').forEach(h => {
+                h.classList.remove('active');
+            });
+            
             document.removeEventListener("mousemove", duranteRedimensionamento);
             document.removeEventListener("mouseup", pararRedimensionamento);
+            
             document.body.style.cursor = "";
+            document.body.style.userSelect = "";
             colunaAtual = null;
         }
 
@@ -431,6 +493,7 @@
         async function carregarPNAE() {
             try {
                 container.innerHTML = '<div class="carregando">🔄 Carregando PNAE 2026...</div>';
+                statusBar.style.display = 'none';
                 
                 const resposta = await fetch(URL_PLANILHA_PNAE);
                 
@@ -457,6 +520,7 @@
         async function carregarFAED() {
             try {
                 container.innerHTML = '<div class="carregando">🔄 Carregando FAED 2026...</div>';
+                statusBar.style.display = 'none';
                 
                 const resposta = await fetch(URL_PLANILHA_FAED);
                 
@@ -482,7 +546,8 @@
 
         async function carregarMANUTENCAO() {
             try {
-                container.innerHTML = '<div class="carregando">🔄 Carregando Manutenção 2026 (Backup_Remessa)...</div>';
+                container.innerHTML = '<div class="carregando">🔄 Carregando Manutenção 2026...</div>';
+                statusBar.style.display = 'none';
                 
                 const resposta = await fetch(URL_PLANILHA_MANUTENCAO);
                 
