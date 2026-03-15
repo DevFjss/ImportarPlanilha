@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>REPASSE CDF - Visualizador de Planilhas</title>
+    <title>FAED - Visualizador de Planilhas</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
     <style>
         * {
@@ -19,46 +19,45 @@
             background: #f0f4fc;
             overflow: hidden;
         }
-        
-               /* MENU LATERAL - LARGURA REDUZIDA */
+
+        /* MENU LATERAL - AJUSTADO */
         .sidebar {
-            width: 280px;  /* Antes era 380px ou 400px */
+            width: 280px;
             background: #0a3a9e;
             color: white;
-            padding: 30px 20px;
+            padding: 25px 15px;
             box-shadow: 5px 0 15px rgba(0,0,0,0.15);
             display: flex;
             flex-direction: column;
             height: 100vh;
         }
-        /* LOGO - FONTE REDUZIDA */
+
         .logo {
-            font-size: 20px;
+            font-size: 22px;
             font-weight: bold;
-            margin-bottom: 40px;
-            padding-left: 10px;
-            border-left: 5px solid #ffd700;
+            margin-bottom: 30px;
+            padding-left: 8px;
+            border-left: 4px solid #ffd700;
         }
 
-                /* BOTÕES DO MENU - REDUZIDOS */
         .menu-item {
             width: 100%;
-            padding: 12px 11px;  /* Antes era 18px 20px */
-            margin: 6px 0;       /* Antes era 8px 0 */
+            padding: 12px 15px;
+            margin: 5px 0;
             border: none;
             background: #1e4fc4;
             color: white;
             cursor: pointer;
             text-align: left;
-            font-size: 16px;     /* Antes era 20px */
+            font-size: 15px;
             font-weight: 500;
-            border-radius: 8px;   /* Antes era 12px */
+            border-radius: 6px;
             transition: all 0.3s;
         }
 
         .menu-item:hover {
             background: #2f66e0;
-            transform: translateX(5px);
+            transform: translateX(3px);
         }
 
         /* AREA PRINCIPAL */
@@ -180,13 +179,20 @@
             font-size: 18px;
             font-weight: 500;
         }
+        
+        .sidebar div:last-child {
+            margin-top: auto;
+            font-size: 11px;
+            opacity: 0.6;
+            padding: 15px 5px;
+        }
     </style>
 </head>
 <body>
     <!-- MENU LATERAL -->
     <div class="sidebar">
         <div class="logo">
-            📊 Repasses - CDF
+            📊 FAED
         </div>
         
         <button class="menu-item" onclick="carregarPNAE()">
@@ -194,14 +200,14 @@
         </button>
         
         <button class="menu-item" onclick="carregarFAED()">
-        📁 FAED 2026
-    </button>
-
-         <button class="menu-item" onclick="carregarMANUTENCAO()">
-        🔧 Gerador Manutenção 2026
-    </button>
+            📁 FAED 2026
+        </button>
         
-        <div style="margin-top: auto; font-size: 14px; opacity: 0.7; padding: 20px 10px;">
+        <button class="menu-item" onclick="carregarMANUTENCAO()">
+            🔧 Manutenção 2026
+        </button>
+        
+        <div>
             Clique para carregar a planilha<br>
             Arraste as bordas para redimensionar
         </div>
@@ -209,17 +215,20 @@
 
     <!-- CONTEÚDO PRINCIPAL -->
     <div class="main-content">
-        <h2>📋 Visualizar repasses</h2>
+        <h2>📋 Visualizador de Planilhas</h2>
         
         <div class="table-container">
             <div id="tabela-container" class="mensagem-inicial">
-                👈 Clique em "PNAE 2026" para carregar a planilha
+                👈 Clique em um menu para carregar a planilha
             </div>
         </div>
     </div>
 
     <script>
-        const URL_PLANILHA = "https://raw.githubusercontent.com/DevFjss/ImportarPlanilha/main/SALDO_DISPONIVEL_CARTÃO_PNAE_2026.xlsx";
+        const URL_PLANILHA_PNAE = "https://raw.githubusercontent.com/DevFjss/ImportarPlanilha/main/SALDO_DISPONIVEL_CARTÃO_PNAE_2026.xlsx";
+        const URL_PLANILHA_FAED = "https://raw.githubusercontent.com/DevFjss/ImportarPlanilha/main/SALDO_DISPONIVEL_CARTÃO_FAED_2026.xlsx";
+        const URL_PLANILHA_MANUTENCAO = "https://raw.githubusercontent.com/DevFjss/ImportarPlanilha/main/GERADOR_REMESSA_CARTÃO_MANUTENÇÃO_2026.xlsm";
+        
         const container = document.getElementById("tabela-container");
 
         // Variáveis para redimensionamento
@@ -227,130 +236,38 @@
         let mouseXInicial = 0;
         let larguraInicial = 0;
 
-        // LISTA FIXA DE COLUNAS QUE NÃO DEVEM SER FORMATADAS (identificadores)
-        const COLUNAS_SEM_FORMATACAO = [
-            'Nº', 'NTE', 'CODIGO SEC', 'Cod. SEC', 'CODIGO INEP', 'Nº CARTÃO', 'CPF',
-            'CODIGO', 'CÓDIGO', 'NUMERO', 'NÚMERO', 'CARTÃO'
-        ];
-
-        async function carregarPNAE() {
-            try {
-                container.innerHTML = '<div class="carregando">🔄 Carregando planilha...</div>';
-                
-                const resposta = await fetch(URL_PLANILHA);
-                
-                if (!resposta.ok) {
-                    throw new Error("Erro ao carregar arquivo");
-                }
-                
-                const buffer = await resposta.arrayBuffer();
-                const workbook = XLSX.read(buffer, { type: 'array' });
-                const primeiraAba = workbook.SheetNames[0];
-                const sheet = workbook.Sheets[primeiraAba];
-                
-                const dados = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
-                
-                processarEExibirTabela(dados);
-                
-            } catch (erro) {
-                container.innerHTML = `<div class="mensagem-inicial" style="color: #d32f2f;">
-                    ❌ Erro: ${erro.message}
-                </div>`;
+        // FUNÇÃO PRINCIPAL PARA VERIFICAR SE É COLUNA IDENTIFICADOR
+        function colunaEhIdentificador(textoCabecalho) {
+            if (!textoCabecalho) return false;
+            
+            // Converte para maiúsculo e remove acentos
+            const texto = textoCabecalho.toString()
+                .toUpperCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .trim();
+            
+            // Verifica se contém palavras-chave de identificador
+            if (texto.includes('Nº') || 
+                texto.includes('NTE') || 
+                texto.includes('CPF') ||
+                texto.includes('CARTAO')) {
+                return true;
             }
+            
+            // Para códigos (COD, SEC, INEP)
+            if (texto.includes('COD') || texto.includes('CODIGO')) {
+                if (texto.includes('SEC') || texto.includes('INEP')) {
+                    return true;
+                }
+            }
+            
+            return false;
         }
-                    // URL da nova planilha FAED
-                    const URL_PLANILHA_FAED = "https://raw.githubusercontent.com/DevFjss/ImportarPlanilha/main/SALDO_DISPONIVEL_CARTÃO_FAED_2026.xlsx";
-                    
-                    // Função para carregar planilha FAED
-                    async function carregarFAED() {
-                        try {
-                            container.innerHTML = '<div class="carregando">🔄 Carregando planilha FAED...</div>';
-                            
-                            const resposta = await fetch(URL_PLANILHA_FAED);
-                            
-                            if (!resposta.ok) {
-                                throw new Error("Erro ao carregar arquivo FAED");
-                            }
-                            
-                            const buffer = await resposta.arrayBuffer();
-                            const workbook = XLSX.read(buffer, { type: 'array' });
-                            const primeiraAba = workbook.SheetNames[0];
-                            const sheet = workbook.Sheets[primeiraAba];
-                            
-                            const dados = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
-                            
-                            // Usa a MESMA função de processamento
-                            processarEExibirTabela(dados);
-                            
-                            // Opcional: muda o título
-                            document.querySelector('.main-content h2').textContent = '📋 Visualizador FAED 2026';
-                            
-                        } catch (erro) {
-                            container.innerHTML = `<div class="mensagem-inicial" style="color: #d32f2f;">
-                                ❌ Erro ao carregar FAED: ${erro.message}
-                            </div>`;
-                        }
-                    }
 
-      // URL da planilha de Manutenção
-const URL_PLANILHA_MANUTENCAO = "https://raw.githubusercontent.com/DevFjss/ImportarPlanilha/main/GERADOR_REMESSA_CARTÃO_MANUTENÇÃO_2026.xlsm";
-
-// Função para carregar planilha de Manutenção - ABA ESPECÍFICA
-async function carregarMANUTENCAO() {
-    try {
-        container.innerHTML = '<div class="carregando">🔄 Carregando planilha Manutenção (Backup_Remessa)...</div>';
-        
-        const resposta = await fetch(URL_PLANILHA_MANUTENCAO);
-        
-        if (!resposta.ok) {
-            throw new Error("Erro ao carregar arquivo de Manutenção");
-        }
-        
-        const buffer = await resposta.arrayBuffer();
-        const workbook = XLSX.read(buffer, { type: 'array' });
-        
-        // VERIFICA SE A ABA "Backup_Remessa" EXISTE
-        const nomeAbaDesejada = "Backup_Remessa";
-        const abaEncontrada = workbook.SheetNames.find(nome => 
-            nome.toUpperCase() === nomeAbaDesejada.toUpperCase() || 
-            nome.includes("Backup") || 
-            nome.includes("REMESSA")
-        );
-        
-        if (!abaEncontrada) {
-            // Se não encontrar a aba específica, mostra as abas disponíveis
-            const abasDisponiveis = workbook.SheetNames.join(', ');
-            throw new Error(`Aba "${nomeAbaDesejada}" não encontrada. Abas disponíveis: ${abasDisponiveis}`);
-        }
-        
-        // PEGA A ABA ENCONTRADA
-        const sheet = workbook.Sheets[abaEncontrada];
-        const dados = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
-        
-        // Mostra qual aba está sendo carregada
-        console.log(`Carregando aba: ${abaEncontrada}`);
-        
-        // Usa a função de processamento
-        processarEExibirTabela(dados);
-        
-        // Muda o título
-        document.querySelector('.main-content h2').textContent = '🔧 Manutenção - Backup_Remessa';
-        
-        // Opcional: mostra status com nome da aba
-        const statusInfo = document.getElementById("status-info");
-        if (statusInfo) {
-            statusInfo.textContent = `📊 Aba: ${abaEncontrada} | ${dados.length} linhas`;
-        }
-        
-    } catch (erro) {
-        container.innerHTML = `<div class="mensagem-inicial" style="color: #d32f2f;">
-            ❌ Erro ao carregar Manutenção: ${erro.message}
-        </div>`;
-    }
-}
-        // LOCALIZAR LINHA DO CABEÇALHO (procura por NTE)
+        // LOCALIZAR LINHA DO CABEÇALHO
         function localizarLinhaCabecalho(dados) {
-            for (let i = 0; i < Math.min(20, dados.length); i++) {
+            for (let i = 0; i < Math.min(30, dados.length); i++) {
                 const linha = dados[i] || [];
                 
                 for (let j = 0; j < linha.length; j++) {
@@ -359,24 +276,17 @@ async function carregarMANUTENCAO() {
                     if (celula && typeof celula === 'string') {
                         const texto = celula.toString().toUpperCase().trim();
                         
-                        if (texto.includes('NTE') || texto.includes('Nº') || texto.includes('CPF')) {
+                        if (texto.includes('NTE') || 
+                            texto.includes('Nº') || 
+                            texto.includes('CODIGO') || 
+                            texto.includes('CPF') ||
+                            texto.includes('MUNICIPIO')) {
                             return i;
                         }
                     }
                 }
             }
             return 0;
-        }
-
-        // VERIFICAR SE COLUNA DEVE SER IDENTIFICADOR (SEM FORMATAÇÃO)
-        function colunaEhIdentificador(textoCabecalho) {
-            if (!textoCabecalho) return false;
-            
-            const texto = textoCabecalho.toString().toUpperCase().trim();
-            
-            return COLUNAS_SEM_FORMATACAO.some(palavra => {
-                return texto.includes(palavra) || texto.includes(palavra.replace(' ', ''));
-            });
         }
 
         // FORMATAR NÚMERO NO PADRÃO BRASILEIRO
@@ -393,7 +303,7 @@ async function carregarMANUTENCAO() {
         }
 
         // PROCESSAR E CRIAR TABELA
-        function processarEExibirTabela(dados) {
+        function processarEExibirTabela(dados, titulo = 'Visualizador') {
             if (!dados || dados.length === 0) {
                 container.innerHTML = '<div class="mensagem-inicial">⚠️ Planilha vazia</div>';
                 return;
@@ -403,7 +313,7 @@ async function carregarMANUTENCAO() {
             const linhaCabecalho = localizarLinhaCabecalho(dados);
             const cabecalho = dados[linhaCabecalho] || [];
             
-            // Identifica colunas que NÃO devem ser formatadas
+            // Identifica colunas que NÃO devem ser formatadas (identificadores)
             const colunasIdentificador = [];
             cabecalho.forEach((texto, index) => {
                 if (colunaEhIdentificador(texto)) {
@@ -421,7 +331,8 @@ async function carregarMANUTENCAO() {
             cabecalho.forEach((texto, index) => {
                 const th = document.createElement("th");
                 th.textContent = texto || `Coluna ${index + 1}`;
-                th.style.width = '150px'; // Largura inicial
+                th.style.width = '150px';
+                th.setAttribute('data-coluna', index);
                 
                 // Handle para redimensionar
                 const handle = document.createElement("div");
@@ -454,21 +365,23 @@ async function carregarMANUTENCAO() {
                     const valor = linha[index] !== undefined ? linha[index] : '';
                     const td = document.createElement("td");
                     
-                    // REGRA PRINCIPAL:
-                    // Se é coluna identificador (lista fixa) → SEM formatação
-                    // Se é número e NÃO é identificador → formata como valor
+                    // SE É COLUNA IDENTIFICADOR (Nº, NTE, COD SEC, etc)
                     if (colunasIdentificador.includes(index)) {
-                        // Coluna da lista: Nº, NTE, código, CPF etc - sem formatação
                         td.classList.add("identificador");
-                        td.textContent = valor;
+                        
+                        // Remove TODOS os pontos do número
+                        if (valor !== null && valor !== undefined) {
+                            td.textContent = valor.toString().replace(/\./g, '');
+                        } else {
+                            td.textContent = '';
+                        }
                     } 
+                    // SE É NÚMERO E NÃO É IDENTIFICADOR → formata como valor
                     else if (typeof valor === 'number') {
-                        // É número e não é identificador → formata como valor
                         td.classList.add("valor");
                         td.textContent = formatarNumeroBR(valor);
                     }
                     else {
-                        // Texto normal
                         td.textContent = valor;
                     }
                     
@@ -480,15 +393,10 @@ async function carregarMANUTENCAO() {
             
             tabela.appendChild(tbody);
             
-            // Atualiza container
+            // Atualiza container e título
             container.innerHTML = '';
             container.appendChild(tabela);
-            
-            console.log("Tabela gerada:", {
-                linhaCabecalho,
-                colunasIdentificador,
-                totalLinhas: tbody.children.length
-            });
+            document.querySelector('.main-content h2').textContent = `📋 ${titulo}`;
         }
 
         // FUNÇÕES DE REDIMENSIONAMENTO
@@ -519,7 +427,94 @@ async function carregarMANUTENCAO() {
             colunaAtual = null;
         }
 
+        // FUNÇÕES PARA CARREGAR PLANILHAS
+        async function carregarPNAE() {
+            try {
+                container.innerHTML = '<div class="carregando">🔄 Carregando PNAE 2026...</div>';
+                
+                const resposta = await fetch(URL_PLANILHA_PNAE);
+                
+                if (!resposta.ok) {
+                    throw new Error("Erro ao carregar PNAE");
+                }
+                
+                const buffer = await resposta.arrayBuffer();
+                const workbook = XLSX.read(buffer, { type: 'array' });
+                const primeiraAba = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[primeiraAba];
+                
+                const dados = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+                
+                processarEExibirTabela(dados, 'PNAE 2026');
+                
+            } catch (erro) {
+                container.innerHTML = `<div class="mensagem-inicial" style="color: #d32f2f;">
+                    ❌ Erro: ${erro.message}
+                </div>`;
+            }
+        }
+
+        async function carregarFAED() {
+            try {
+                container.innerHTML = '<div class="carregando">🔄 Carregando FAED 2026...</div>';
+                
+                const resposta = await fetch(URL_PLANILHA_FAED);
+                
+                if (!resposta.ok) {
+                    throw new Error("Erro ao carregar FAED");
+                }
+                
+                const buffer = await resposta.arrayBuffer();
+                const workbook = XLSX.read(buffer, { type: 'array' });
+                const primeiraAba = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[primeiraAba];
+                
+                const dados = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+                
+                processarEExibirTabela(dados, 'FAED 2026');
+                
+            } catch (erro) {
+                container.innerHTML = `<div class="mensagem-inicial" style="color: #d32f2f;">
+                    ❌ Erro: ${erro.message}
+                </div>`;
+            }
+        }
+
+        async function carregarMANUTENCAO() {
+            try {
+                container.innerHTML = '<div class="carregando">🔄 Carregando Manutenção 2026 (Backup_Remessa)...</div>';
+                
+                const resposta = await fetch(URL_PLANILHA_MANUTENCAO);
+                
+                if (!resposta.ok) {
+                    throw new Error("Erro ao carregar Manutenção");
+                }
+                
+                const buffer = await resposta.arrayBuffer();
+                const workbook = XLSX.read(buffer, { type: 'array' });
+                
+                // Procura pela aba Backup_Remessa
+                const nomeAbaDesejada = workbook.SheetNames.find(nome => 
+                    nome.toUpperCase().includes('BACKUP') || 
+                    nome.toUpperCase().includes('REMESSA')
+                ) || workbook.SheetNames[0];
+                
+                const sheet = workbook.Sheets[nomeAbaDesejada];
+                const dados = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+                
+                processarEExibirTabela(dados, `Manutenção - ${nomeAbaDesejada}`);
+                
+            } catch (erro) {
+                container.innerHTML = `<div class="mensagem-inicial" style="color: #d32f2f;">
+                    ❌ Erro: ${erro.message}
+                </div>`;
+            }
+        }
+
+        // Tornar funções globais
         window.carregarPNAE = carregarPNAE;
+        window.carregarFAED = carregarFAED;
+        window.carregarMANUTENCAO = carregarMANUTENCAO;
     </script>
 </body>
 </html>
