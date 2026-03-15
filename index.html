@@ -274,7 +274,7 @@
             // Lista completa de palavras-chave
             const palavrasChave = [
                 'Nº', 'NTE', 'CPF', 'CARTAO',
-                'COD SEC', 'COD. SEC', 'CODIGO SEC', 'CODIGO SEC',
+                'COD SEC', 'COD. SEC', 'CODIGO SEC', 'CODIGO SEC', 'CUSTO', 'ID',
                 'COD INEP', 'COD. INEP', 'CODIGO INEP'
             ];
             
@@ -287,7 +287,7 @@
             
             // Verifica padrões gerais
             if (texto.includes('COD') || texto.includes('CODIGO')) {
-                if (texto.includes('SEC') || texto.includes('INEP')) {
+                if (texto.includes('SEC') || texto.includes('CUSTO') || texto.includes('ID') || texto.includes('INEP')) {
                     return true;
                 }
             }
