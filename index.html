@@ -192,6 +192,9 @@
             📁 PNAE 2026
         </button>
         
+        <button class="menu-item" onclick="carregarFAED()">
+        📁 FAED 2026
+    </button>
         <div style="margin-top: auto; font-size: 14px; opacity: 0.7; padding: 20px 10px;">
             Clique para carregar a planilha<br>
             Arraste as bordas para redimensionar
@@ -249,7 +252,39 @@
                 </div>`;
             }
         }
-
+                    // URL da nova planilha FAED
+                    const URL_PLANILHA_FAED = "https://raw.githubusercontent.com/DevFjss/ImportarPlanilha/main/SALDO_DISPONIVEL_CARTÃO_FAED_2026.xlsx";
+                    
+                    // Função para carregar planilha FAED
+                    async function carregarFAED() {
+                        try {
+                            container.innerHTML = '<div class="carregando">🔄 Carregando planilha FAED...</div>';
+                            
+                            const resposta = await fetch(URL_PLANILHA_FAED);
+                            
+                            if (!resposta.ok) {
+                                throw new Error("Erro ao carregar arquivo FAED");
+                            }
+                            
+                            const buffer = await resposta.arrayBuffer();
+                            const workbook = XLSX.read(buffer, { type: 'array' });
+                            const primeiraAba = workbook.SheetNames[0];
+                            const sheet = workbook.Sheets[primeiraAba];
+                            
+                            const dados = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+                            
+                            // Usa a MESMA função de processamento
+                            processarEExibirTabela(dados);
+                            
+                            // Opcional: muda o título
+                            document.querySelector('.main-content h2').textContent = '📋 Visualizador FAED 2026';
+                            
+                        } catch (erro) {
+                            container.innerHTML = `<div class="mensagem-inicial" style="color: #d32f2f;">
+                                ❌ Erro ao carregar FAED: ${erro.message}
+                            </div>`;
+                        }
+                    }
         // LOCALIZAR LINHA DO CABEÇALHO (procura por NTE)
         function localizarLinhaCabecalho(dados) {
             for (let i = 0; i < Math.min(20, dados.length); i++) {
