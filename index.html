@@ -143,26 +143,23 @@
             background: #e8f0fe;
         }
 
-      /* RESIZE HANDLE - CORRIGIDO */
-.resize-handle {
-    position: absolute;
-    right: 0;
-    top: 0;
-    width: 8px;
-    height: 100%;
-    cursor: col-resize;
-    background: transparent;
-    transition: background 0.2s;
-    z-index: 100;
-}
+     /* RESIZE HANDLE */
+        .resize-handle {
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 6px;
+            height: 100%;
+            cursor: col-resize;
+            background: transparent;
+            transition: background 0.2s;
+            z-index: 10;
+        }
 
-.resize-handle:hover {
-    background: rgba(255, 255, 255, 0.4);
-}
-
-.resize-handle.dragging {
-    background: rgba(255, 255, 255, 0.7);
-}
+        .resize-handle:hover,
+        .resize-handle:active {
+            background: rgba(255, 255, 255, 0.4);
+        }
 
 /* GARANTIR QUE TH PERMITA POSICIONAMENTO ABSOLUTO */
 th {
@@ -418,33 +415,33 @@ th {
             document.querySelector('.main-content h2').textContent = `📋 ${titulo}`;
         }
 
-               // FUNÇÕES DE REDIMENSIONAMENTO - CORRIGIDAS
+               // FUNÇÕES DE REDIMENSIONAMENTO
         function iniciarRedimensionamento(e, elemento) {
-            e.preventDefault();
-            e.stopPropagation();
-            
             colunaAtual = elemento;
             mouseXInicial = e.pageX;
             larguraInicial = elemento.offsetWidth;
-            
-            // Adiciona classe visual ao handle
-            const handle = e.target;
-            handle.classList.add('dragging');
             
             document.addEventListener("mousemove", duranteRedimensionamento);
             document.addEventListener("mouseup", pararRedimensionamento);
             
             document.body.style.cursor = "col-resize";
-            document.body.style.userSelect = "none"; // Previne seleção de texto
         }
-        
+
         function duranteRedimensionamento(e) {
             if (!colunaAtual) return;
             
-            e.preventDefault();
-            
             const diffX = e.pageX - mouseXInicial;
-            const novaWidth = Math.max(60, larguraInicial + diffX);
+            const novaWidth = Math.max(80, larguraInicial + diffX);
+            
+            colunaAtual.style.width = novaWidth + 'px';
+        }
+
+        function pararRedimensionamento() {
+            document.removeEventListener("mousemove", duranteRedimensionamento);
+            document.removeEventListener("mouseup", pararRedimensionamento);
+            document.body.style.cursor = "";
+            colunaAtual = null;
+        }
     
     // Aplica largura na coluna atual
     colunaAtual.style.width = novaWidth + 'px';
