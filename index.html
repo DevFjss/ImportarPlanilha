@@ -143,23 +143,40 @@
             background: #e8f0fe;
         }
 
-        /* RESIZE HANDLE */
-        .resize-handle {
-            position: absolute;
-            right: 0;
-            top: 0;
-            width: 6px;
-            height: 100%;
-            cursor: col-resize;
-            background: transparent;
-            transition: background 0.2s;
-            z-index: 10;
-        }
+      /* RESIZE HANDLE - CORRIGIDO */
+.resize-handle {
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 8px;
+    height: 100%;
+    cursor: col-resize;
+    background: transparent;
+    transition: background 0.2s;
+    z-index: 100;
+}
 
-        .resize-handle:hover,
-        .resize-handle:active {
-            background: rgba(255, 255, 255, 0.4);
-        }
+.resize-handle:hover {
+    background: rgba(255, 255, 255, 0.4);
+}
+
+.resize-handle.dragging {
+    background: rgba(255, 255, 255, 0.7);
+}
+
+/* GARANTIR QUE TH PERMITA POSICIONAMENTO ABSOLUTO */
+th {
+    position: relative;
+    background: #0a3a9e;
+    color: white;
+    padding: 15px 10px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 14px;
+    user-select: none;
+    white-space: nowrap;
+    border-right: 1px solid #2f66e0;
+}
 
         /* MENSAGEM INICIAL */
         .mensagem-inicial {
@@ -401,34 +418,56 @@
             document.querySelector('.main-content h2').textContent = `📋 ${titulo}`;
         }
 
-        // FUNÇÕES DE REDIMENSIONAMENTO
+               // FUNÇÕES DE REDIMENSIONAMENTO - CORRIGIDAS
         function iniciarRedimensionamento(e, elemento) {
+            e.preventDefault();
+            e.stopPropagation();
+            
             colunaAtual = elemento;
             mouseXInicial = e.pageX;
             larguraInicial = elemento.offsetWidth;
+            
+            // Adiciona classe visual ao handle
+            const handle = e.target;
+            handle.classList.add('dragging');
             
             document.addEventListener("mousemove", duranteRedimensionamento);
             document.addEventListener("mouseup", pararRedimensionamento);
             
             document.body.style.cursor = "col-resize";
+            document.body.style.userSelect = "none"; // Previne seleção de texto
         }
-
+        
         function duranteRedimensionamento(e) {
             if (!colunaAtual) return;
             
-            const diffX = e.pageX - mouseXInicial;
-            const novaWidth = Math.max(80, larguraInicial + diffX);
+            e.preventDefault();
             
-            colunaAtual.style.width = novaWidth + 'px';
-        }
+            const diffX = e.pageX - mouseXInicial;
+            const novaWidth = Math.max(60, larguraInicial + diffX);
+    
+    // Aplica largura na coluna atual
+    colunaAtual.style.width = novaWidth + 'px';
+    colunaAtual.style.minWidth = novaWidth + 'px';
+    colunaAtual.style.maxWidth = novaWidth + 'px';
+    
+    // Força atualização do layout
+    colunaAtual.style.flex = 'none';
+}
 
-        function pararRedimensionamento() {
-            document.removeEventListener("mousemove", duranteRedimensionamento);
-            document.removeEventListener("mouseup", pararRedimensionamento);
-            document.body.style.cursor = "";
-            colunaAtual = null;
-        }
-
+function pararRedimensionamento() {
+    // Remove classe visual do handle
+    document.querySelectorAll('.resize-handle').forEach(h => {
+        h.classList.remove('dragging');
+    });
+    
+    document.removeEventListener("mousemove", duranteRedimensionamento);
+    document.removeEventListener("mouseup", pararRedimensionamento);
+    
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+    colunaAtual = null;
+}
         // FUNÇÕES PARA CARREGAR PLANILHAS
         async function carregarPNAE() {
             try {
