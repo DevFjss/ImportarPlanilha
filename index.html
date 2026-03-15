@@ -1,346 +1,445 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FAED - Visualizador de Planilhas</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-<meta charset="UTF-8">
-<title>FAED - Visualizador</title>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            display: flex;
+            height: 100vh;
+            background: #f0f4fc;
+        }
 
-<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+        /* MENU LATERAL - AZUL MAIS LARGO */
+        .sidebar {
+            width: 400px;
+            background: #0a3a9e;
+            color: white;
+            padding: 30px 20px;
+            box-shadow: 5px 0 15px rgba(0,0,0,0.15);
+            display: flex;
+            flex-direction: column;
+        }
 
-<style>
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 40px;
+            padding-left: 10px;
+            border-left: 5px solid #ffd700;
+        }
 
-/* PAGINA */
+        .menu-item {
+            width: 100%;
+            padding: 18px 20px;
+            margin: 8px 0;
+            border: none;
+            background: #1e4fc4;
+            color: white;
+            cursor: pointer;
+            text-align: left;
+            font-size: 20px;
+            font-weight: 500;
+            border-radius: 12px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
 
-body{
-margin:0;
-font-family:Arial;
-display:flex;
-height:100vh;
-background:#eef3ff;
-}
+        .menu-item:hover {
+            background: #2f66e0;
+            transform: translateX(5px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
 
-/* MENU LATERAL */
+        /* AREA PRINCIPAL */
+        .main-content {
+            flex: 1;
+            padding: 25px;
+            overflow: auto;
+        }
 
-.sidebar{
-width:380px;
-background:#0b4ec2;
-color:white;
-padding:25px;
-box-shadow:4px 0 10px rgba(0,0,0,0.2);
-}
+        .main-content h2 {
+            color: #0a3a9e;
+            margin-bottom: 20px;
+            font-size: 28px;
+            font-weight: 600;
+        }
 
-.logo{
-font-size:26px;
-margin-bottom:30px;
-font-weight:bold;
-}
+        /* CONTAINER DA TABELA */
+        .table-container {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            overflow-x: auto;
+        }
 
-.menu-item{
+        /* TABELA */
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 14px;
+            min-width: 800px;
+        }
 
-width:100%;
-padding:15px;
-margin:10px 0;
-border:none;
-background:#1b66e3;
-color:white;
-cursor:pointer;
-text-align:left;
-font-size:18px;
-border-radius:6px;
-}
+        /* CABEÇALHO AZUL */
+        th {
+            background: #0a3a9e;
+            color: white;
+            padding: 15px 10px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 14px;
+            position: relative;
+            user-select: none;
+            white-space: nowrap;
+            border-right: 1px solid #2f66e0;
+        }
 
-.menu-item:hover{
-background:#2f7df7;
-}
+        th:last-child {
+            border-right: none;
+        }
 
-/* AREA DIREITA */
+        /* LINHAS */
+        td {
+            padding: 12px 10px;
+            border-bottom: 1px solid #e0e7f0;
+            white-space: nowrap;
+        }
 
-.main-content{
-flex:1;
-padding:20px;
-overflow:auto;
-}
+        /* COLUNAS NUMÉRICAS - FORMATO BR */
+        .numero {
+            background: #f5f9ff;
+            text-align: right;
+            font-weight: 600;
+            color: #0a3a9e;
+            font-family: 'Courier New', monospace;
+        }
 
-/* TABELA */
+        /* LINHAS ALTERNADAS */
+        tbody tr:nth-child(even) {
+            background: #f8faff;
+        }
 
-.table-container{
-background:white;
-padding:15px;
-border-radius:10px;
-box-shadow:0 3px 10px rgba(0,0,0,0.1);
-}
+        tbody tr:hover {
+            background: #e8f0fe;
+        }
 
-table{
-border-collapse:collapse;
-width:100%;
-font-size:14px;
-}
+        /* RESIZE HANDLE */
+        .resize-handle {
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 8px;
+            height: 100%;
+            cursor: col-resize;
+            background: transparent;
+            transition: background 0.2s;
+        }
 
-/* CABECALHO */
+        .resize-handle:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
 
-th{
-background:#0b4ec2;
-color:white;
-padding:10px;
-text-align:left;
-position:relative;
-}
+        .resize-handle:active {
+            background: rgba(255, 255, 255, 0.5);
+        }
 
-/* LINHAS */
+        /* MENSAGEM INICIAL */
+        .mensagem-inicial {
+            text-align: center;
+            padding: 50px;
+            color: #666;
+            font-size: 18px;
+            background: #f5f9ff;
+            border-radius: 10px;
+            border: 2px dashed #0a3a9e;
+        }
 
-td{
-padding:8px;
-border-bottom:1px solid #ddd;
-}
-
-/* COLUNAS NUMERICAS */
-
-.numero{
-background:#f0f6ff;
-text-align:right;
-font-weight:bold;
-}
-
-/* LINHAS ALTERNADAS */
-
-tr:nth-child(even){
-background:#fafafa;
-}
-
-/* RESIZE */
-
-.resize-handle{
-position:absolute;
-right:0;
-top:0;
-width:6px;
-height:100%;
-cursor:col-resize;
-}
-
-</style>
-
+        /* CARREGANDO */
+        .carregando {
+            text-align: center;
+            padding: 40px;
+            color: #0a3a9e;
+            font-size: 18px;
+            font-weight: 500;
+        }
+    </style>
 </head>
-
 <body>
-
-<!-- MENU -->
-
-<div class="sidebar">
-
-<div class="logo">
-Sistema FAED
-</div>
-
-<button class="menu-item" onclick="carregarPNAE()">
-PNAE
-</button>
-
-</div>
-
-<!-- CONTEUDO -->
-
-<div class="main-content">
-
-<h2>PNAE</h2>
-
-<div class="table-container">
-
-<div id="tabela-container">
-Clique em PNAE para carregar a planilha
-</div>
-
-</div>
-
-</div>
-
-<script>
-
-const URL_PLANILHA =
-"https://raw.githubusercontent.com/DevFjss/ImportarPlanilha/main/SALDO_DISPONIVEL_CARTÃO_PNAE_2026.xlsx";
-
-const container =
-document.getElementById("tabela-container");
-
-/* CARREGAR PLANILHA */
-
-async function carregarPNAE(){
-
-container.innerHTML="Carregando planilha...";
-
-const resposta = await fetch(URL_PLANILHA);
-
-const buffer = await resposta.arrayBuffer();
-
-const workbook = XLSX.read(buffer);
-
-const sheet = workbook.Sheets[workbook.SheetNames[0]];
-
-const dados = XLSX.utils.sheet_to_json(sheet,{header:1});
-
-gerarTabela(dados);
-
-}
-
-/* LOCALIZAR CABECALHO */
-
-function localizarCabecalho(dados){
-
-for(let i=0;i<dados.length;i++){
-
-for(let j=0;j<dados[i].length;j++){
-
-if(dados[i][j]){
-
-let texto = dados[i][j].toString().toUpperCase();
-
-if(texto.includes("NTE")){
-
-return i;
-
-}
-
-}
-
-}
-
-}
-
-return 0;
-
-}
-
-/* FORMATAR NUMERO */
-
-function formatarNumero(valor){
-
-if(typeof valor === "number"){
-
-return valor.toLocaleString("pt-BR",{
-minimumFractionDigits:2,
-maximumFractionDigits:2
-});
-
-}
-
-return valor;
-
-}
-
-/* GERAR TABELA */
-
-function gerarTabela(dados){
-
-let linhaCab = localizarCabecalho(dados);
-
-let tabela = document.createElement("table");
-
-let thead = document.createElement("thead");
-
-let trHead = document.createElement("tr");
-
-/* CABECALHO */
-
-dados[linhaCab].forEach(col=>{
-
-let th = document.createElement("th");
-
-th.textContent = col;
-
-/* RESIZE */
-
-let resize = document.createElement("div");
-
-resize.className="resize-handle";
-
-resize.addEventListener("mousedown",initResize);
-
-th.appendChild(resize);
-
-trHead.appendChild(th);
-
-});
-
-thead.appendChild(trHead);
-
-tabela.appendChild(thead);
-
-/* DADOS */
-
-let tbody = document.createElement("tbody");
-
-for(let i=linhaCab+1;i<dados.length;i++){
-
-let tr = document.createElement("tr");
-
-dados[i].forEach(valor=>{
-
-let td = document.createElement("td");
-
-if(typeof valor === "number"){
-
-td.classList.add("numero");
-
-td.textContent = formatarNumero(valor);
-
-}else{
-
-td.textContent = valor;
-
-}
-
-tr.appendChild(td);
-
-});
-
-tbody.appendChild(tr);
-
-}
-
-tabela.appendChild(tbody);
-
-container.innerHTML="";
-
-container.appendChild(tabela);
-
-}
-
-/* REDIMENSIONAR COLUNA */
-
-let col;
-let startX;
-let startWidth;
-
-function initResize(e){
-
-col = e.target.parentElement;
-
-startX = e.pageX;
-
-startWidth = col.offsetWidth;
-
-document.addEventListener("mousemove",resizeCol);
-
-document.addEventListener("mouseup",stopResize);
-
-}
-
-function resizeCol(e){
-
-col.style.width = startWidth + (e.pageX-startX) + "px";
-
-}
-
-function stopResize(){
-
-document.removeEventListener("mousemove",resizeCol);
-
-document.removeEventListener("mouseup",stopResize);
-
-}
-
-</script>
-
+    <!-- MENU LATERAL -->
+    <div class="sidebar">
+        <div class="logo">
+            📊 FAED <br>Sistema
+        </div>
+        
+        <button class="menu-item" onclick="carregarPNAE()">
+            📁 PNAE 2026
+        </button>
+        
+        <div style="margin-top: auto; font-size: 14px; opacity: 0.7; padding: 20px 10px;">
+            Clique no menu para carregar<br>a planilha com cabeçalho automático
+        </div>
+    </div>
+
+    <!-- CONTEÚDO PRINCIPAL -->
+    <div class="main-content">
+        <h2>📋 Visualizador PNAE</h2>
+        
+        <div class="table-container">
+            <div id="tabela-container" class="mensagem-inicial">
+                👈 Clique em "PNAE 2026" no menu lateral<br>
+                para carregar a planilha
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const URL_PLANILHA = "https://raw.githubusercontent.com/DevFjss/ImportarPlanilha/main/SALDO_DISPONIVEL_CARTÃO_PNAE_2026.xlsx";
+        const container = document.getElementById("tabela-container");
+
+        // Variáveis para redimensionamento
+        let colunaAtual = null;
+        let mouseXInicial = 0;
+        let larguraInicial = 0;
+
+        // FUNÇÃO PRINCIPAL PARA CARREGAR PLANILHA
+        async function carregarPNAE() {
+            try {
+                container.innerHTML = '<div class="carregando">🔄 Carregando planilha...</div>';
+                
+                const resposta = await fetch(URL_PLANILHA);
+                
+                if (!resposta.ok) {
+                    throw new Error("Erro ao carregar arquivo");
+                }
+                
+                const buffer = await resposta.arrayBuffer();
+                const workbook = XLSX.read(buffer, { type: 'array' });
+                const primeiraAba = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[primeiraAba];
+                
+                // Converte para array 2D
+                const dados = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+                
+                // Processa e exibe a tabela
+                processarEExibirTabela(dados);
+                
+            } catch (erro) {
+                container.innerHTML = `<div class="mensagem-inicial" style="color: #d32f2f;">
+                    ❌ Erro ao carregar: ${erro.message}<br>
+                    <small>Verifique se o arquivo está acessível</small>
+                </div>`;
+                console.error(erro);
+            }
+        }
+
+        // LOCALIZAR LINHA DO CABEÇALHO (procura por "NTE")
+        function localizarLinhaCabecalho(dados) {
+            for (let i = 0; i < Math.min(20, dados.length); i++) { // Limita às primeiras 20 linhas
+                const linha = dados[i] || [];
+                
+                for (let j = 0; j < linha.length; j++) {
+                    const celula = linha[j];
+                    
+                    if (celula && typeof celula === 'string') {
+                        const texto = celula.toString().toUpperCase().trim();
+                        
+                        // Procura por NTE no conteúdo
+                        if (texto.includes('NTE') || texto.includes('NÚCLEO') || texto.includes('MUNICÍPIO')) {
+                            console.log(`Cabeçalho encontrado na linha ${i}, coluna ${j}: "${celula}"`);
+                            return i;
+                        }
+                    } else if (celula && typeof celula === 'number') {
+                        // Ignora números no início
+                        continue;
+                    }
+                }
+            }
+            
+            console.log("Cabeçalho não encontrado, usando linha 0");
+            return 0; // Retorna primeira linha se não encontrar
+        }
+
+        // FORMATAR NÚMERO NO PADRÃO BRASILEIRO (1.234,56)
+        function formatarNumeroBR(valor) {
+            if (valor === null || valor === undefined || valor === '') return '';
+            
+            const numero = Number(valor);
+            
+            if (isNaN(numero)) return valor;
+            
+            return numero.toLocaleString('pt-BR', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+
+        // VERIFICAR SE UMA COLUNA É NUMÉRICA
+        function colunaPareceNumerica(valores) {
+            let contadorNumerico = 0;
+            let total = 0;
+            
+            for (let i = 0; i < Math.min(10, valores.length); i++) {
+                const val = valores[i];
+                if (val === undefined || val === null || val === '') continue;
+                
+                if (typeof val === 'number') {
+                    contadorNumerico++;
+                } else if (typeof val === 'string') {
+                    const str = val.toString().trim();
+                    if (str !== '' && !isNaN(str.replace(/[^\d,-]/g, '').replace(',', '.'))) {
+                        contadorNumerico++;
+                    }
+                }
+                total++;
+            }
+            
+            return total > 0 && (contadorNumerico / total) > 0.6;
+        }
+
+        // PROCESSAR E CRIAR TABELA
+        function processarEExibirTabela(dados) {
+            if (!dados || dados.length === 0) {
+                container.innerHTML = '<div class="mensagem-inicial">⚠️ Planilha vazia</div>';
+                return;
+            }
+
+            // Localiza linha do cabeçalho
+            const linhaCabecalho = localizarLinhaCabecalho(dados);
+            
+            console.log(`Linha do cabeçalho: ${linhaCabecalho}`);
+            console.log(`Total de linhas: ${dados.length}`);
+            
+            // Pega cabeçalho
+            const cabecalho = dados[linhaCabecalho] || [];
+            
+            // Prepara array para identificar colunas numéricas
+            const primeirasLinhas = [];
+            for (let i = linhaCabecalho + 1; i < Math.min(linhaCabecalho + 15, dados.length); i++) {
+                if (dados[i]) primeirasLinhas.push(dados[i]);
+            }
+            
+            // Cria tabela
+            const tabela = document.createElement("table");
+            
+            // CABEÇALHO
+            const thead = document.createElement("thead");
+            const trHead = document.createElement("tr");
+            
+            cabecalho.forEach((texto, index) => {
+                const th = document.createElement("th");
+                th.textContent = texto || `Coluna ${index + 1}`;
+                th.setAttribute('data-coluna', index);
+                
+                // Handle para redimensionar
+                const handle = document.createElement("div");
+                handle.className = "resize-handle";
+                handle.addEventListener("mousedown", (e) => iniciarRedimensionamento(e, th));
+                
+                th.appendChild(handle);
+                trHead.appendChild(th);
+            });
+            
+            thead.appendChild(trHead);
+            tabela.appendChild(thead);
+            
+            // CORPO DA TABELA
+            const tbody = document.createElement("tbody");
+            
+            for (let i = linhaCabecalho + 1; i < dados.length; i++) {
+                const linha = dados[i];
+                
+                // Pula linhas vazias
+                if (!linha || linha.every(celula => celula === undefined || celula === null || celula === '')) {
+                    continue;
+                }
+                
+                const tr = document.createElement("tr");
+                
+                cabecalho.forEach((_, index) => {
+                    const valor = linha[index] !== undefined ? linha[index] : '';
+                    const td = document.createElement("td");
+                    
+                    // Verifica se é numérico
+                    if (typeof valor === 'number') {
+                        td.classList.add("numero");
+                        td.textContent = formatarNumeroBR(valor);
+                    } else if (typeof valor === 'string' && valor.trim() !== '' && !isNaN(valor.replace(',', '.'))) {
+                        // Tenta converter string numérica
+                        const numero = parseFloat(valor.replace(',', '.'));
+                        if (!isNaN(numero)) {
+                            td.classList.add("numero");
+                            td.textContent = formatarNumeroBR(numero);
+                        } else {
+                            td.textContent = valor;
+                        }
+                    } else {
+                        td.textContent = valor;
+                    }
+                    
+                    tr.appendChild(td);
+                });
+                
+                tbody.appendChild(tr);
+            }
+            
+            tabela.appendChild(tbody);
+            
+            // Atualiza container
+            container.innerHTML = '';
+            container.appendChild(tabela);
+            
+            console.log("Tabela gerada com sucesso!");
+        }
+
+        // FUNÇÕES DE REDIMENSIONAMENTO
+        function iniciarRedimensionamento(evento, elemento) {
+            evento.preventDefault();
+            
+            colunaAtual = elemento;
+            mouseXInicial = evento.pageX;
+            larguraInicial = elemento.offsetWidth;
+            
+            // Adiciona listeners
+            document.addEventListener("mousemove", duranteRedimensionamento);
+            document.addEventListener("mouseup", pararRedimensionamento);
+            
+            // Muda cursor global
+            document.body.style.cursor = "col-resize";
+        }
+
+        function duranteRedimensionamento(evento) {
+            if (!colunaAtual) return;
+            
+            const diffX = evento.pageX - mouseXInicial;
+            const novaWidth = Math.max(50, larguraInicial + diffX); // Mínimo 50px
+            
+            colunaAtual.style.width = novaWidth + "px";
+        }
+
+        function pararRedimensionamento() {
+            // Remove listeners
+            document.removeEventListener("mousemove", duranteRedimensionamento);
+            document.removeEventListener("mouseup", pararRedimensionamento);
+            
+            // Restaura cursor
+            document.body.style.cursor = "";
+            
+            colunaAtual = null;
+        }
+
+        // Torna função global para acesso pelo onclick
+        window.carregarPNAE = carregarPNAE;
+    </script>
 </body>
 </html>
