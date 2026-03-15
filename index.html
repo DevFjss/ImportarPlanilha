@@ -22,7 +22,7 @@
 
         /* MENU LATERAL - AZUL MAIS LARGO */
         .sidebar {
-            width: 400px;
+            width: 380px;
             background: #0a3a9e;
             color: white;
             padding: 30px 20px;
@@ -30,7 +30,6 @@
             display: flex;
             flex-direction: column;
             height: 100vh;
-            overflow-y: auto;
         }
 
         .logo {
@@ -54,13 +53,11 @@
             font-weight: 500;
             border-radius: 12px;
             transition: all 0.3s;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
 
         .menu-item:hover {
             background: #2f66e0;
             transform: translateX(5px);
-            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
         }
 
         /* AREA PRINCIPAL */
@@ -69,8 +66,6 @@
             padding: 25px;
             overflow: auto;
             height: 100vh;
-            display: flex;
-            flex-direction: column;
         }
 
         .main-content h2 {
@@ -87,16 +82,15 @@
             border-radius: 15px;
             box-shadow: 0 5px 20px rgba(0,0,0,0.08);
             overflow: auto;
-            flex: 1;
+            max-height: calc(100vh - 140px);
         }
 
         /* TABELA */
         table {
             border-collapse: collapse;
-            width: auto;
-            min-width: 100%;
+            width: 100%;
             font-size: 14px;
-            table-layout: fixed;
+            table-layout: auto;
         }
 
         /* CABEÇALHO AZUL */
@@ -111,7 +105,6 @@
             user-select: none;
             white-space: nowrap;
             border-right: 1px solid #2f66e0;
-            min-width: 80px;
         }
 
         th:last-child {
@@ -123,25 +116,22 @@
             padding: 12px 10px;
             border-bottom: 1px solid #e0e7f0;
             white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
         }
 
-        /* COLUNAS DE VALORES - FORMATO BR (apenas valores monetários) */
-        td.valor-moeda {
-            background: #e6f0ff;
+        /* COLUNAS DE VALORES - FORMATO BR */
+        td.valor {
+            background: #f0f6ff;
             text-align: right;
             font-weight: 600;
             color: #0a3a9e;
             font-family: 'Courier New', monospace;
         }
 
-        /* COLUNAS DE IDENTIFICADOR (Nº, NTE, código, CPF) - SEM FORMATAÇÃO */
+        /* COLUNAS IDENTIFICADOR - SEM FORMATAÇÃO */
         td.identificador {
             text-align: left;
             font-weight: 400;
             color: #333;
-            background: transparent;
         }
 
         /* LINHAS ALTERNADAS */
@@ -153,12 +143,12 @@
             background: #e8f0fe;
         }
 
-        /* RESIZE HANDLE - VISÍVEL E FUNCIONAL */
+        /* RESIZE HANDLE */
         .resize-handle {
             position: absolute;
-            right: -4px;
+            right: 0;
             top: 0;
-            width: 8px;
+            width: 6px;
             height: 100%;
             cursor: col-resize;
             background: transparent;
@@ -168,11 +158,7 @@
 
         .resize-handle:hover,
         .resize-handle:active {
-            background: rgba(255, 255, 255, 0.5);
-        }
-
-        .resize-handle.dragging {
-            background: rgba(255, 255, 255, 0.7);
+            background: rgba(255, 255, 255, 0.4);
         }
 
         /* MENSAGEM INICIAL */
@@ -186,7 +172,6 @@
             border: 2px dashed #0a3a9e;
         }
 
-        /* CARREGANDO */
         .carregando {
             text-align: center;
             padding: 40px;
@@ -194,25 +179,13 @@
             font-size: 18px;
             font-weight: 500;
         }
-
-        /* BARRA DE STATUS */
-        .status-bar {
-            margin-top: 15px;
-            padding: 10px;
-            background: #e6f0ff;
-            border-radius: 8px;
-            color: #0a3a9e;
-            font-size: 13px;
-            display: flex;
-            justify-content: space-between;
-        }
     </style>
 </head>
 <body>
     <!-- MENU LATERAL -->
     <div class="sidebar">
         <div class="logo">
-            📊 FAED <br>Sistema
+            📊 FAED
         </div>
         
         <button class="menu-item" onclick="carregarPNAE()">
@@ -220,10 +193,8 @@
         </button>
         
         <div style="margin-top: auto; font-size: 14px; opacity: 0.7; padding: 20px 10px;">
-            Clique no menu para carregar<br>a planilha com cabeçalho automático<br>
-            <span style="display: block; margin-top: 10px; font-size: 12px;">
-                ↕️ Arraste as bordas das colunas para redimensionar
-            </span>
+            Clique para carregar a planilha<br>
+            Arraste as bordas para redimensionar
         </div>
     </div>
 
@@ -233,41 +204,29 @@
         
         <div class="table-container">
             <div id="tabela-container" class="mensagem-inicial">
-                👈 Clique em "PNAE 2026" no menu lateral<br>
-                para carregar a planilha
+                👈 Clique em "PNAE 2026" para carregar a planilha
             </div>
-        </div>
-        
-        <div id="status-bar" class="status-bar" style="display: none;">
-            <span id="status-info"></span>
-            <span>Arraste as bordas do cabeçalho para redimensionar</span>
         </div>
     </div>
 
     <script>
         const URL_PLANILHA = "https://raw.githubusercontent.com/DevFjss/ImportarPlanilha/main/SALDO_DISPONIVEL_CARTÃO_PNAE_2026.xlsx";
         const container = document.getElementById("tabela-container");
-        const statusBar = document.getElementById("status-bar");
-        const statusInfo = document.getElementById("status-info");
 
         // Variáveis para redimensionamento
         let colunaAtual = null;
         let mouseXInicial = 0;
         let larguraInicial = 0;
-        let handleAtual = null;
 
-        // Palavras-chave para identificar colunas que NÃO devem ser formatadas como valor
-        const COLUNAS_IDENTIFICADOR = [
+        // LISTA FIXA DE COLUNAS QUE NÃO DEVEM SER FORMATADAS (identificadores)
+        const COLUNAS_SEM_FORMATACAO = [
             'Nº', 'NTE', 'CODIGO SEC', 'CODIGO INEP', 'Nº CARTÃO', 'CPF',
-            'COD.', 'CÓDIGO', 'COD', 'NUMERO', 'NÚMERO', 'ID', 'IDENTIFICADOR',
-            'DOCUMENTO', 'MATRÍCULA', 'REGISTRO', 'INE', 'SEC', 'CARTÃO'
+            'CODIGO', 'CÓDIGO', 'NUMERO', 'NÚMERO', 'CARTÃO'
         ];
 
-        // Função principal para carregar planilha
         async function carregarPNAE() {
             try {
                 container.innerHTML = '<div class="carregando">🔄 Carregando planilha...</div>';
-                statusBar.style.display = 'none';
                 
                 const resposta = await fetch(URL_PLANILHA);
                 
@@ -280,24 +239,20 @@
                 const primeiraAba = workbook.SheetNames[0];
                 const sheet = workbook.Sheets[primeiraAba];
                 
-                // Converte para array 2D
                 const dados = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
                 
-                // Processa e exibe a tabela
                 processarEExibirTabela(dados);
                 
             } catch (erro) {
                 container.innerHTML = `<div class="mensagem-inicial" style="color: #d32f2f;">
-                    ❌ Erro ao carregar: ${erro.message}<br>
-                    <small>Verifique se o arquivo está acessível</small>
+                    ❌ Erro: ${erro.message}
                 </div>`;
-                console.error(erro);
             }
         }
 
-        // LOCALIZAR LINHA DO CABEÇALHO (procura por palavras-chave)
+        // LOCALIZAR LINHA DO CABEÇALHO (procura por NTE)
         function localizarLinhaCabecalho(dados) {
-            for (let i = 0; i < Math.min(30, dados.length); i++) {
+            for (let i = 0; i < Math.min(20, dados.length); i++) {
                 const linha = dados[i] || [];
                 
                 for (let j = 0; j < linha.length; j++) {
@@ -306,74 +261,33 @@
                     if (celula && typeof celula === 'string') {
                         const texto = celula.toString().toUpperCase().trim();
                         
-                        // Procura por palavras-chave de cabeçalho
-                        if (texto.includes('NTE') || 
-                            texto.includes('Nº') || 
-                            texto.includes('CODIGO') || 
-                            texto.includes('CÓDIGO') ||
-                            texto.includes('MUNICÍPIO') ||
-                            texto.includes('CPF') ||
-                            texto.includes('CARTÃO') ||
-                            texto.includes('INEP')) {
-                            console.log(`Cabeçalho encontrado na linha ${i}, coluna ${j}: "${celula}"`);
+                        if (texto.includes('NTE') || texto.includes('Nº') || texto.includes('CPF')) {
                             return i;
                         }
                     }
                 }
             }
-            
-            console.log("Cabeçalho não encontrado, usando linha 0");
             return 0;
         }
 
-        // VERIFICAR SE É COLUNA IDENTIFICADOR (NÃO DEVE FORMATAR COMO VALOR)
+        // VERIFICAR SE COLUNA DEVE SER IDENTIFICADOR (SEM FORMATAÇÃO)
         function colunaEhIdentificador(textoCabecalho) {
             if (!textoCabecalho) return false;
             
             const texto = textoCabecalho.toString().toUpperCase().trim();
             
-            return COLUNAS_IDENTIFICADOR.some(palavra => {
+            return COLUNAS_SEM_FORMATACAO.some(palavra => {
                 return texto.includes(palavra) || texto.includes(palavra.replace(' ', ''));
             });
         }
 
-        // VERIFICAR SE O VALOR PARECE SER VALOR MONETÁRIO
-        function valorPareceValorMonetario(valor) {
-            if (valor === null || valor === undefined || valor === '') return false;
-            
-            // Se for número com casas decimais, provavelmente é valor
-            if (typeof valor === 'number') {
-                // Tem casas decimais OU é maior que 1000
-                return !Number.isInteger(valor) || valor > 9999;
-            }
-            
-            // Se for string, verifica padrão de dinheiro
-            if (typeof valor === 'string') {
-                const str = valor.trim();
-                // Tem R$, ou ponto/decimais
-                return str.includes('R$') || 
-                       (str.includes(',') && str.replace(/[^\d,]/g, '').length > 0) ||
-                       /^\d{1,3}(\.\d{3})*,\d{2}$/.test(str); // padrão 1.234,56
-            }
-            
-            return false;
-        }
-
-        // FORMATAR NÚMERO NO PADRÃO BRASILEIRO (1.234,56)
+        // FORMATAR NÚMERO NO PADRÃO BRASILEIRO
         function formatarNumeroBR(valor) {
-            if (valor === null || valor === undefined || valor === '') return '';
+            if (valor === null || valor === undefined) return '';
             
-            let numero;
-            if (typeof valor === 'number') {
-                numero = valor;
-            } else {
-                const strValor = valor.toString().replace(/[R$\s.]/g, '').replace(',', '.');
-                numero = parseFloat(strValor);
-            }
-            
+            const numero = Number(valor);
             if (isNaN(numero)) return valor;
             
-            // Formata com 2 casas decimais
             return numero.toLocaleString('pt-BR', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
@@ -387,13 +301,11 @@
                 return;
             }
 
-            // Localiza linha do cabeçalho
+            // Localiza cabeçalho
             const linhaCabecalho = localizarLinhaCabecalho(dados);
-            
-            // Pega cabeçalho
             const cabecalho = dados[linhaCabecalho] || [];
             
-            // Identifica quais colunas são identificadores (não formatar como valor)
+            // Identifica colunas que NÃO devem ser formatadas
             const colunasIdentificador = [];
             cabecalho.forEach((texto, index) => {
                 if (colunaEhIdentificador(texto)) {
@@ -401,11 +313,8 @@
                 }
             });
             
-            console.log("Colunas identificador (não formatar):", colunasIdentificador);
-            
             // Cria tabela
             const tabela = document.createElement("table");
-            tabela.id = "planilha-principal";
             
             // CABEÇALHO
             const thead = document.createElement("thead");
@@ -414,19 +323,14 @@
             cabecalho.forEach((texto, index) => {
                 const th = document.createElement("th");
                 th.textContent = texto || `Coluna ${index + 1}`;
-                th.setAttribute('data-coluna', index);
+                th.style.width = '150px'; // Largura inicial
                 
-                // Aplica largura inicial
-                th.style.width = '150px';
-                
-                // Handle para redimensionar - CRIADO CORRETAMENTE
+                // Handle para redimensionar
                 const handle = document.createElement("div");
                 handle.className = "resize-handle";
-                handle.setAttribute('data-coluna', index);
-                
-                // Eventos de mouse para redimensionar
-                handle.addEventListener("mousedown", function(e) {
-                    iniciarRedimensionamento(e, th, handle);
+                handle.addEventListener("mousedown", (e) => {
+                    e.preventDefault();
+                    iniciarRedimensionamento(e, th);
                 });
                 
                 th.appendChild(handle);
@@ -442,8 +346,7 @@
             for (let i = linhaCabecalho + 1; i < dados.length; i++) {
                 const linha = dados[i];
                 
-                // Pula linhas vazias
-                if (!linha || linha.every(celula => celula === undefined || celula === null || celula === '')) {
+                if (!linha || linha.every(celula => celula === undefined || celula === '')) {
                     continue;
                 }
                 
@@ -453,21 +356,18 @@
                     const valor = linha[index] !== undefined ? linha[index] : '';
                     const td = document.createElement("td");
                     
-                    // Verifica se esta coluna é identificador (NÃO deve formatar como valor)
+                    // REGRA PRINCIPAL:
+                    // Se é coluna identificador (lista fixa) → SEM formatação
+                    // Se é número e NÃO é identificador → formata como valor
                     if (colunasIdentificador.includes(index)) {
-                        // Coluna identificador - mostrar como texto puro
+                        // Coluna da lista: Nº, NTE, código, CPF etc - sem formatação
                         td.classList.add("identificador");
                         td.textContent = valor;
                     } 
-                    // Verifica se parece valor monetário
-                    else if (valorPareceValorMonetario(valor)) {
-                        td.classList.add("valor-moeda");
-                        td.textContent = formatarNumeroBR(valor);
-                    }
                     else if (typeof valor === 'number') {
-                        // É número mas não parece valor monetário
-                        td.classList.add("identificador");
-                        td.textContent = valor;
+                        // É número e não é identificador → formata como valor
+                        td.classList.add("valor");
+                        td.textContent = formatarNumeroBR(valor);
                     }
                     else {
                         // Texto normal
@@ -486,65 +386,41 @@
             container.innerHTML = '';
             container.appendChild(tabela);
             
-            // Mostra status
-            statusBar.style.display = 'flex';
-            statusInfo.textContent = `📊 ${tbody.children.length} linhas carregadas | ${cabecalho.length} colunas`;
-            
-            console.log("Tabela gerada com sucesso!");
+            console.log("Tabela gerada:", {
+                linhaCabecalho,
+                colunasIdentificador,
+                totalLinhas: tbody.children.length
+            });
         }
 
-        // FUNÇÕES DE REDIMENSIONAMENTO - CORRIGIDAS
-        function iniciarRedimensionamento(evento, elementoTh, elementoHandle) {
-            evento.preventDefault();
-            evento.stopPropagation();
+        // FUNÇÕES DE REDIMENSIONAMENTO
+        function iniciarRedimensionamento(e, elemento) {
+            colunaAtual = elemento;
+            mouseXInicial = e.pageX;
+            larguraInicial = elemento.offsetWidth;
             
-            colunaAtual = elementoTh;
-            handleAtual = elementoHandle;
-            mouseXInicial = evento.pageX;
-            larguraInicial = elementoTh.offsetWidth;
-            
-            // Adiciona classe visual
-            elementoHandle.classList.add('dragging');
-            
-            // Adiciona listeners
             document.addEventListener("mousemove", duranteRedimensionamento);
             document.addEventListener("mouseup", pararRedimensionamento);
             
-            // Muda cursor global
             document.body.style.cursor = "col-resize";
-            document.body.style.userSelect = "none"; // Previne seleção durante arrasto
         }
 
-        function duranteRedimensionamento(evento) {
+        function duranteRedimensionamento(e) {
             if (!colunaAtual) return;
             
-            const diffX = evento.pageX - mouseXInicial;
-            const novaWidth = Math.max(60, larguraInicial + diffX); // Mínimo 60px
+            const diffX = e.pageX - mouseXInicial;
+            const novaWidth = Math.max(80, larguraInicial + diffX);
             
-            // Aplica largura diretamente no elemento
             colunaAtual.style.width = novaWidth + 'px';
-            colunaAtual.style.minWidth = novaWidth + 'px';
-            colunaAtual.style.maxWidth = novaWidth + 'px';
         }
 
         function pararRedimensionamento() {
-            if (handleAtual) {
-                handleAtual.classList.remove('dragging');
-            }
-            
-            // Remove listeners
             document.removeEventListener("mousemove", duranteRedimensionamento);
             document.removeEventListener("mouseup", pararRedimensionamento);
-            
-            // Restaura cursor
             document.body.style.cursor = "";
-            document.body.style.userSelect = "";
-            
             colunaAtual = null;
-            handleAtual = null;
         }
 
-        // Torna função global para acesso pelo onclick
         window.carregarPNAE = carregarPNAE;
     </script>
 </body>
