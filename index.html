@@ -6,54 +6,55 @@
 <meta charset="UTF-8">
 <title>FAED - Visualizador</title>
 
-<link rel="stylesheet"
-href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 
 <style>
+
+/* PAGINA */
 
 body{
 margin:0;
 font-family:Arial;
 display:flex;
 height:100vh;
-background:#f2f5ff;
+background:#eef3ff;
 }
 
-/* MENU */
+/* MENU LATERAL */
 
 .sidebar{
-width:300px;
-background:#0d47a1;
+width:380px;
+background:#0b4ec2;
 color:white;
 padding:25px;
+box-shadow:4px 0 10px rgba(0,0,0,0.2);
 }
 
 .logo{
-font-size:22px;
+font-size:26px;
 margin-bottom:30px;
+font-weight:bold;
 }
 
 .menu-item{
-display:block;
+
 width:100%;
-padding:14px;
-margin:8px 0;
+padding:15px;
+margin:10px 0;
 border:none;
-background:none;
+background:#1b66e3;
 color:white;
 cursor:pointer;
 text-align:left;
-font-size:16px;
+font-size:18px;
 border-radius:6px;
 }
 
 .menu-item:hover{
-background:#1565c0;
+background:#2f7df7;
 }
 
-/* CONTEUDO */
+/* AREA DIREITA */
 
 .main-content{
 flex:1;
@@ -65,29 +66,46 @@ overflow:auto;
 
 .table-container{
 background:white;
+padding:15px;
 border-radius:10px;
-padding:10px;
+box-shadow:0 3px 10px rgba(0,0,0,0.1);
 }
 
 table{
-width:100%;
 border-collapse:collapse;
+width:100%;
+font-size:14px;
 }
 
+/* CABECALHO */
+
 th{
-background:#1976d2;
+background:#0b4ec2;
 color:white;
 padding:10px;
+text-align:left;
 position:relative;
 }
+
+/* LINHAS */
 
 td{
 padding:8px;
 border-bottom:1px solid #ddd;
 }
 
+/* COLUNAS NUMERICAS */
+
+.numero{
+background:#f0f6ff;
+text-align:right;
+font-weight:bold;
+}
+
+/* LINHAS ALTERNADAS */
+
 tr:nth-child(even){
-background:#f7f7f7;
+background:#fafafa;
 }
 
 /* RESIZE */
@@ -107,17 +125,21 @@ cursor:col-resize;
 
 <body>
 
+<!-- MENU -->
+
 <div class="sidebar">
 
 <div class="logo">
-<i class="fas fa-school"></i> FAED
+Sistema FAED
 </div>
 
-<button class="menu-item" onclick="carregarPlanilha()">
-<i class="fas fa-book-open"></i> PNAE
+<button class="menu-item" onclick="carregarPNAE()">
+PNAE
 </button>
 
 </div>
+
+<!-- CONTEUDO -->
 
 <div class="main-content">
 
@@ -141,15 +163,17 @@ const URL_PLANILHA =
 const container =
 document.getElementById("tabela-container");
 
-async function carregarPlanilha(){
+/* CARREGAR PLANILHA */
+
+async function carregarPNAE(){
 
 container.innerHTML="Carregando planilha...";
 
 const resposta = await fetch(URL_PLANILHA);
 
-const data = await resposta.arrayBuffer();
+const buffer = await resposta.arrayBuffer();
 
-const workbook = XLSX.read(data);
+const workbook = XLSX.read(buffer);
 
 const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
@@ -159,7 +183,7 @@ gerarTabela(dados);
 
 }
 
-/* LOCALIZAR LINHA CABEÇALHO */
+/* LOCALIZAR CABECALHO */
 
 function localizarCabecalho(dados){
 
@@ -167,9 +191,15 @@ for(let i=0;i<dados.length;i++){
 
 for(let j=0;j<dados[i].length;j++){
 
-if(dados[i][j] && dados[i][j].toString().toUpperCase().includes("NTE")){
+if(dados[i][j]){
+
+let texto = dados[i][j].toString().toUpperCase();
+
+if(texto.includes("NTE")){
 
 return i;
+
+}
 
 }
 
@@ -181,9 +211,9 @@ return 0;
 
 }
 
-/* FORMATAR NUMERO BR */
+/* FORMATAR NUMERO */
 
-function formatarBR(valor){
+function formatarNumero(valor){
 
 if(typeof valor === "number"){
 
@@ -202,23 +232,25 @@ return valor;
 
 function gerarTabela(dados){
 
-const linhaCabecalho = localizarCabecalho(dados);
+let linhaCab = localizarCabecalho(dados);
 
-const tabela = document.createElement("table");
+let tabela = document.createElement("table");
 
-const thead = document.createElement("thead");
+let thead = document.createElement("thead");
 
-const trHead = document.createElement("tr");
+let trHead = document.createElement("tr");
 
-dados[linhaCabecalho].forEach(col=>{
+/* CABECALHO */
 
-const th = document.createElement("th");
+dados[linhaCab].forEach(col=>{
+
+let th = document.createElement("th");
 
 th.textContent = col;
 
-/* resize */
+/* RESIZE */
 
-const resize = document.createElement("div");
+let resize = document.createElement("div");
 
 resize.className="resize-handle";
 
@@ -234,17 +266,29 @@ thead.appendChild(trHead);
 
 tabela.appendChild(thead);
 
-const tbody = document.createElement("tbody");
+/* DADOS */
 
-for(let i=linhaCabecalho+1;i<dados.length;i++){
+let tbody = document.createElement("tbody");
 
-const tr = document.createElement("tr");
+for(let i=linhaCab+1;i<dados.length;i++){
+
+let tr = document.createElement("tr");
 
 dados[i].forEach(valor=>{
 
-const td = document.createElement("td");
+let td = document.createElement("td");
 
-td.textContent = formatarBR(valor);
+if(typeof valor === "number"){
+
+td.classList.add("numero");
+
+td.textContent = formatarNumero(valor);
+
+}else{
+
+td.textContent = valor;
+
+}
 
 tr.appendChild(td);
 
@@ -262,7 +306,7 @@ container.appendChild(tabela);
 
 }
 
-/* REDIMENSIONAR COLUNAS */
+/* REDIMENSIONAR COLUNA */
 
 let col;
 let startX;
@@ -284,7 +328,7 @@ document.addEventListener("mouseup",stopResize);
 
 function resizeCol(e){
 
-col.style.width = startWidth + (e.pageX - startX) + "px";
+col.style.width = startWidth + (e.pageX-startX) + "px";
 
 }
 
