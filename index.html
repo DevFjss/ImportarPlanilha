@@ -143,7 +143,7 @@
             background: #e8f0fe;
         }
 
-     /* RESIZE HANDLE */
+        /* RESIZE HANDLE */
         .resize-handle {
             position: absolute;
             right: 0;
@@ -160,20 +160,6 @@
         .resize-handle:active {
             background: rgba(255, 255, 255, 0.4);
         }
-
-/* GARANTIR QUE TH PERMITA POSICIONAMENTO ABSOLUTO */
-th {
-    position: relative;
-    background: #0a3a9e;
-    color: white;
-    padding: 15px 10px;
-    text-align: left;
-    font-weight: 600;
-    font-size: 14px;
-    user-select: none;
-    white-space: nowrap;
-    border-right: 1px solid #2f66e0;
-}
 
         /* MENSAGEM INICIAL */
         .mensagem-inicial {
@@ -218,7 +204,7 @@ th {
         </button>
         
         <button class="menu-item" onclick="carregarMANUTENCAO()">
-            🔧 Gerador manutenção 2026
+            🔧 Manutenção 2026
         </button>
         
         <div>
@@ -265,15 +251,13 @@ th {
             if (texto.includes('Nº') || 
                 texto.includes('NTE') || 
                 texto.includes('CPF') ||
-                texto.includes('CUSTO') ||
-                 texto.includes('ID') ||
                 texto.includes('CARTAO')) {
                 return true;
             }
             
             // Para códigos (COD, SEC, INEP)
             if (texto.includes('COD') || texto.includes('CODIGO')) {
-                if (texto.includes('SEC') || texto.includes('CUSTO') || texto.includes('ID') || texto.includes('INEP')) {
+                if (texto.includes('SEC') || texto.includes('INEP')) {
                     return true;
                 }
             }
@@ -415,7 +399,7 @@ th {
             document.querySelector('.main-content h2').textContent = `📋 ${titulo}`;
         }
 
-               // FUNÇÕES DE REDIMENSIONAMENTO
+        // FUNÇÕES DE REDIMENSIONAMENTO
         function iniciarRedimensionamento(e, elemento) {
             colunaAtual = elemento;
             mouseXInicial = e.pageX;
@@ -442,29 +426,7 @@ th {
             document.body.style.cursor = "";
             colunaAtual = null;
         }
-    
-    // Aplica largura na coluna atual
-    colunaAtual.style.width = novaWidth + 'px';
-    colunaAtual.style.minWidth = novaWidth + 'px';
-    colunaAtual.style.maxWidth = novaWidth + 'px';
-    
-    // Força atualização do layout
-    colunaAtual.style.flex = 'none';
-}
 
-function pararRedimensionamento() {
-    // Remove classe visual do handle
-    document.querySelectorAll('.resize-handle').forEach(h => {
-        h.classList.remove('dragging');
-    });
-    
-    document.removeEventListener("mousemove", duranteRedimensionamento);
-    document.removeEventListener("mouseup", pararRedimensionamento);
-    
-    document.body.style.cursor = "";
-    document.body.style.userSelect = "";
-    colunaAtual = null;
-}
         // FUNÇÕES PARA CARREGAR PLANILHAS
         async function carregarPNAE() {
             try {
