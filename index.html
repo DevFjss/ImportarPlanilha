@@ -252,13 +252,14 @@
                 texto.includes('NTE') || 
                 texto.includes('CPF') ||
                 texto.includes('CUSTO') ||
+                 texto.includes('ID') ||
                 texto.includes('CARTAO')) {
                 return true;
             }
             
             // Para códigos (COD, SEC, INEP)
             if (texto.includes('COD') || texto.includes('CODIGO')) {
-                if (texto.includes('SEC') || texto.includes('CUSTO') || texto.includes('INEP')) {
+                if (texto.includes('SEC') || texto.includes('CUSTO') || texto.includes('ID') || texto.includes('INEP')) {
                     return true;
                 }
             }
