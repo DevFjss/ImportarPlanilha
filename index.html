@@ -308,7 +308,7 @@
             <!-- CONTAINER DE PESQUISA - POSICIONADO À ESQUERDA ACIMA DO CABEÇALHO -->
             <div id="search-container" class="search-container" style="display: none;">
                 <label for="search-input">🔍 Pesquisar por Código SEC:</label>
-                <input type="text" id="search-input" class="search-box" placeholder="Digite o código para filtrar...">
+                <input type="text" id="search-input" class="search-box" placeholder="Digite o código EXATO para filtrar...">
                 <span id="search-info" class="search-info">0 resultados</span>
                 <button id="clear-search" class="clear-search" disabled>Limpar</button>
             </div>
@@ -437,22 +437,39 @@
             });
         }
 
-        // FUNÇÃO DE PESQUISA
+        // FUNÇÃO DE PESQUISA - AGORA COM COMPARAÇÃO EXATA
         function filtrarPorCodigoSec() {
             if (!dadosOriginais || colunaCodigoSec === -1) return;
             
-            const termoPesquisa = searchInput.value.trim().toUpperCase();
+            const termoPesquisa = searchInput.value.trim();
+            
+            // Se o campo estiver vazio, mostra todas as linhas
+            if (termoPesquisa === '') {
+                const linhas = document.querySelectorAll('#planilha-principal tbody tr');
+                linhas.forEach(linha => {
+                    linha.classList.remove('filtrado');
+                });
+                
+                const totalLinhas = dadosOriginais.length - linhaCabecalho - 1;
+                searchInfo.textContent = `${totalLinhas} de ${totalLinhas} resultados`;
+                clearButton.disabled = true;
+                return;
+            }
+            
             const linhas = document.querySelectorAll('#planilha-principal tbody tr');
             let resultados = 0;
             
-            linhas.forEach((linha, index) => {
-                if (index === 0) return; // Pula cabeçalho
-                
+            linhas.forEach((linha) => {
                 const celulas = linha.cells;
                 if (celulas.length > colunaCodigoSec) {
-                    const valorCelula = celulas[colunaCodigoSec].textContent.toString().toUpperCase().trim();
+                    // Obtém o valor da célula e remove qualquer formatação
+                    let valorCelula = celulas[colunaCodigoSec].textContent.toString().trim();
                     
-                    if (termoPesquisa === '' || valorCelula.includes(termoPesquisa)) {
+                    // Remove pontos se for um número (já que os códigos SEC são números)
+                    valorCelula = valorCelula.replace(/\./g, '');
+                    
+                    // Comparação EXATA (case-sensitive para números)
+                    if (valorCelula === termoPesquisa) {
                         linha.classList.remove('filtrado');
                         resultados++;
                     } else {
@@ -463,8 +480,19 @@
             
             // Atualiza informações
             const totalLinhas = dadosOriginais.length - linhaCabecalho - 1;
-            searchInfo.textContent = `${resultados} de ${totalLinhas} resultados`;
-            clearButton.disabled = termoPesquisa === '';
+            
+            if (resultados === 0) {
+                searchInfo.textContent = `Nenhum resultado para "${termoPesquisa}"`;
+                searchInfo.style.color = '#ff4444';
+            } else if (resultados === 1) {
+                searchInfo.textContent = `1 resultado encontrado`;
+                searchInfo.style.color = '#0a3a9e';
+            } else {
+                searchInfo.textContent = `${resultados} resultados encontrados`;
+                searchInfo.style.color = '#0a3a9e';
+            }
+            
+            clearButton.disabled = false;
         }
 
         // LIMPAR PESQUISA
@@ -472,6 +500,7 @@
             searchInput.value = '';
             filtrarPorCodigoSec();
             searchInput.focus();
+            searchInfo.style.color = '#666';
         }
 
         // PROCESSAR E CRIAR TABELA
@@ -554,15 +583,19 @@
                 const tr = document.createElement("tr");
                 
                 cabecalho.forEach((_, index) => {
-                    const valor = linha[index] !== undefined ? linha[index] : '';
+                    let valor = linha[index] !== undefined ? linha[index] : '';
                     const td = document.createElement("td");
                     
                     // SE É COLUNA IDENTIFICADOR (Nº, NTE, COD SEC, etc)
                     if (colunasIdentificador.includes(index)) {
                         td.classList.add("identificador");
                         
-                        // Remove TODOS os pontos do número
+                        // Para códigos, remove pontos e mantém como string
                         if (valor !== null && valor !== undefined) {
+                            // Se for número, converte para string sem formatação
+                            if (typeof valor === 'number') {
+                                valor = valor.toString();
+                            }
                             td.textContent = valor.toString().replace(/\./g, '');
                         } else {
                             td.textContent = '';
@@ -598,12 +631,20 @@
             if (colunaCodigoSec !== -1) {
                 searchContainer.style.display = 'flex';
                 searchInput.value = '';
-                searchInfo.textContent = `0 de ${linhasExibidas} resultados`;
+                searchInfo.textContent = `${linhasExibidas} de ${linhasExibidas} resultados`;
+                searchInfo.style.color = '#666';
                 clearButton.disabled = true;
                 
-                // Adiciona event listeners para pesquisa
+                // Remove listeners antigos e adiciona novos
                 searchInput.removeEventListener('input', filtrarPorCodigoSec);
                 searchInput.addEventListener('input', filtrarPorCodigoSec);
+                
+                // Adiciona suporte para tecla Enter
+                searchInput.removeEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                    }
+                });
                 
                 clearButton.removeEventListener('click', limparPesquisa);
                 clearButton.addEventListener('click', limparPesquisa);
