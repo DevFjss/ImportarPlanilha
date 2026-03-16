@@ -85,6 +85,72 @@
             max-height: calc(100vh - 140px);
         }
 
+        /* CONTAINER DE PESQUISA */
+        .search-container {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #f5f9ff;
+            padding: 12px 15px;
+            border-radius: 8px;
+            border: 1px solid #d0e0ff;
+        }
+
+        .search-container label {
+            color: #0a3a9e;
+            font-weight: 600;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+
+        .search-box {
+            flex: 1;
+            padding: 10px 15px;
+            border: 2px solid #d0e0ff;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.3s;
+            outline: none;
+            max-width: 400px;
+        }
+
+        .search-box:focus {
+            border-color: #0a3a9e;
+            box-shadow: 0 0 0 3px rgba(10, 58, 158, 0.1);
+        }
+
+        .search-info {
+            color: #666;
+            font-size: 13px;
+            background: white;
+            padding: 5px 10px;
+            border-radius: 20px;
+            white-space: nowrap;
+        }
+
+        .clear-search {
+            background: #ff4444;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+
+        .clear-search:hover {
+            background: #cc0000;
+        }
+
+        .clear-search:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
         /* TABELA */
         table {
             border-collapse: collapse;
@@ -141,6 +207,11 @@
 
         tbody tr:hover {
             background: #e8f0fe;
+        }
+
+        /* DESTAQUE PARA LINHAS FILTRADAS */
+        tbody tr.filtrado {
+            display: none;
         }
 
         /* RESIZE HANDLE - MELHORADO */
@@ -220,7 +291,7 @@
         </button>
         
         <button class="menu-item" onclick="carregarMANUTENCAO()">
-            🔧Gerador manutenção 2026
+            🔧 Gerador manutenção 2026
         </button>
         
         <div>
@@ -234,6 +305,14 @@
         <h2>📋 Visualizador de Planilhas</h2>
         
         <div class="table-container">
+            <!-- CONTAINER DE PESQUISA - POSICIONADO À ESQUERDA ACIMA DO CABEÇALHO -->
+            <div id="search-container" class="search-container" style="display: none;">
+                <label for="search-input">🔍 Pesquisar por Código SEC:</label>
+                <input type="text" id="search-input" class="search-box" placeholder="Digite o código para filtrar...">
+                <span id="search-info" class="search-info">0 resultados</span>
+                <button id="clear-search" class="clear-search" disabled>Limpar</button>
+            </div>
+            
             <div id="tabela-container" class="mensagem-inicial">
                 👈 Clique em um menu para carregar a planilha
             </div>
@@ -254,11 +333,20 @@
         const container = document.getElementById("tabela-container");
         const statusBar = document.getElementById("status-bar");
         const statusInfo = document.getElementById("status-info");
+        const searchContainer = document.getElementById("search-container");
+        const searchInput = document.getElementById("search-input");
+        const searchInfo = document.getElementById("search-info");
+        const clearButton = document.getElementById("clear-search");
 
         // Variáveis para redimensionamento
         let colunaAtual = null;
         let mouseXInicial = 0;
         let larguraInicial = 0;
+        
+        // Variáveis para pesquisa
+        let dadosOriginais = null;
+        let linhaCabecalho = 0;
+        let colunaCodigoSec = -1;
 
         // FUNÇÃO PRINCIPAL PARA VERIFICAR SE É COLUNA IDENTIFICADOR
         function colunaEhIdentificador(textoCabecalho) {
@@ -293,6 +381,23 @@
             }
             
             return false;
+        }
+
+        // FUNÇÃO PARA IDENTIFICAR COLUNA DE CÓDIGO SEC
+        function identificarColunaCodigoSec(cabecalho) {
+            for (let i = 0; i < cabecalho.length; i++) {
+                const texto = cabecalho[i] ? cabecalho[i].toString().toUpperCase() : '';
+                
+                // Variações possíveis para Código SEC
+                if (texto.includes('COD SEC') || 
+                    texto.includes('COD. SEC') || 
+                    texto.includes('CODIGO SEC') ||
+                    texto.includes('CÓDIGO SEC') ||
+                    (texto.includes('COD') && texto.includes('SEC'))) {
+                    return i;
+                }
+            }
+            return -1;
         }
 
         // LOCALIZAR LINHA DO CABEÇALHO
@@ -332,17 +437,61 @@
             });
         }
 
+        // FUNÇÃO DE PESQUISA
+        function filtrarPorCodigoSec() {
+            if (!dadosOriginais || colunaCodigoSec === -1) return;
+            
+            const termoPesquisa = searchInput.value.trim().toUpperCase();
+            const linhas = document.querySelectorAll('#planilha-principal tbody tr');
+            let resultados = 0;
+            
+            linhas.forEach((linha, index) => {
+                if (index === 0) return; // Pula cabeçalho
+                
+                const celulas = linha.cells;
+                if (celulas.length > colunaCodigoSec) {
+                    const valorCelula = celulas[colunaCodigoSec].textContent.toString().toUpperCase().trim();
+                    
+                    if (termoPesquisa === '' || valorCelula.includes(termoPesquisa)) {
+                        linha.classList.remove('filtrado');
+                        resultados++;
+                    } else {
+                        linha.classList.add('filtrado');
+                    }
+                }
+            });
+            
+            // Atualiza informações
+            const totalLinhas = dadosOriginais.length - linhaCabecalho - 1;
+            searchInfo.textContent = `${resultados} de ${totalLinhas} resultados`;
+            clearButton.disabled = termoPesquisa === '';
+        }
+
+        // LIMPAR PESQUISA
+        function limparPesquisa() {
+            searchInput.value = '';
+            filtrarPorCodigoSec();
+            searchInput.focus();
+        }
+
         // PROCESSAR E CRIAR TABELA
         function processarEExibirTabela(dados, titulo = 'Visualizador') {
             if (!dados || dados.length === 0) {
                 container.innerHTML = '<div class="mensagem-inicial">⚠️ Planilha vazia</div>';
                 statusBar.style.display = 'none';
+                searchContainer.style.display = 'none';
                 return;
             }
 
+            // Guarda dados originais
+            dadosOriginais = dados;
+            
             // Localiza cabeçalho
-            const linhaCabecalho = localizarLinhaCabecalho(dados);
+            linhaCabecalho = localizarLinhaCabecalho(dados);
             const cabecalho = dados[linhaCabecalho] || [];
+            
+            // Identifica coluna de Código SEC
+            colunaCodigoSec = identificarColunaCodigoSec(cabecalho);
             
             // Identifica colunas que NÃO devem ser formatadas (identificadores)
             const colunasIdentificador = [];
@@ -366,6 +515,12 @@
                 th.style.width = '150px';
                 th.style.minWidth = '80px';
                 th.setAttribute('data-coluna', index);
+                
+                // Destaca a coluna de Código SEC
+                if (index === colunaCodigoSec) {
+                    th.style.background = '#1e4fc4';
+                    th.title = 'Coluna de pesquisa (Código SEC)';
+                }
                 
                 // Handle para redimensionar
                 const handle = document.createElement("div");
@@ -435,9 +590,30 @@
             container.appendChild(tabela);
             document.querySelector('.main-content h2').textContent = `📋 ${titulo}`;
             
-            // Mostra barra de status
+            // Mostra barra de status e container de pesquisa
             statusBar.style.display = 'flex';
             statusInfo.textContent = `📊 ${linhasExibidas} linhas | ${cabecalho.length} colunas`;
+            
+            // Configura pesquisa se a coluna de Código SEC foi encontrada
+            if (colunaCodigoSec !== -1) {
+                searchContainer.style.display = 'flex';
+                searchInput.value = '';
+                searchInfo.textContent = `0 de ${linhasExibidas} resultados`;
+                clearButton.disabled = true;
+                
+                // Adiciona event listeners para pesquisa
+                searchInput.removeEventListener('input', filtrarPorCodigoSec);
+                searchInput.addEventListener('input', filtrarPorCodigoSec);
+                
+                clearButton.removeEventListener('click', limparPesquisa);
+                clearButton.addEventListener('click', limparPesquisa);
+                
+                // Mostra mensagem de qual coluna está sendo usada
+                const nomeColuna = cabecalho[colunaCodigoSec] || 'Código SEC';
+                document.querySelector('.search-container label').innerHTML = `🔍 Pesquisar por ${nomeColuna}:`;
+            } else {
+                searchContainer.style.display = 'none';
+            }
         }
 
         // FUNÇÕES DE REDIMENSIONAMENTO - MELHORADAS
@@ -446,10 +622,9 @@
             e.stopPropagation();
             
             colunaAtual = elemento;
-            mouseXInicial = e.clientX; // Usar clientX é mais preciso
+            mouseXInicial = e.clientX;
             larguraInicial = elemento.offsetWidth;
             
-            // Adiciona classe ao handle
             if (e.target.classList) {
                 e.target.classList.add('active');
             }
@@ -469,14 +644,12 @@
             const diffX = e.clientX - mouseXInicial;
             const novaWidth = Math.max(60, larguraInicial + diffX);
             
-            // Aplica largura na coluna
             colunaAtual.style.width = novaWidth + 'px';
             colunaAtual.style.minWidth = novaWidth + 'px';
             colunaAtual.style.maxWidth = novaWidth + 'px';
         }
 
         function pararRedimensionamento() {
-            // Remove classe ativa de todos os handles
             document.querySelectorAll('.resize-handle').forEach(h => {
                 h.classList.remove('active');
             });
@@ -494,6 +667,7 @@
             try {
                 container.innerHTML = '<div class="carregando">🔄 Carregando PNAE 2026...</div>';
                 statusBar.style.display = 'none';
+                searchContainer.style.display = 'none';
                 
                 const resposta = await fetch(URL_PLANILHA_PNAE);
                 
@@ -521,6 +695,7 @@
             try {
                 container.innerHTML = '<div class="carregando">🔄 Carregando FAED 2026...</div>';
                 statusBar.style.display = 'none';
+                searchContainer.style.display = 'none';
                 
                 const resposta = await fetch(URL_PLANILHA_FAED);
                 
@@ -548,6 +723,7 @@
             try {
                 container.innerHTML = '<div class="carregando">🔄 Carregando Manutenção 2026...</div>';
                 statusBar.style.display = 'none';
+                searchContainer.style.display = 'none';
                 
                 const resposta = await fetch(URL_PLANILHA_MANUTENCAO);
                 
@@ -558,7 +734,6 @@
                 const buffer = await resposta.arrayBuffer();
                 const workbook = XLSX.read(buffer, { type: 'array' });
                 
-                // Procura pela aba Backup_Remessa
                 const nomeAbaDesejada = workbook.SheetNames.find(nome => 
                     nome.toUpperCase().includes('BACKUP') || 
                     nome.toUpperCase().includes('REMESSA')
